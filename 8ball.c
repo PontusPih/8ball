@@ -21,9 +21,9 @@
 #define DEV_MASK 0770
 #define IOT_OP_MASK 07
 
-#define INSTR(x) x<<9
+#define INSTR(x) ((x)<<9)
 #define INC_12BIT(x) (((x)+1) & B12_MASK)
-#define INC_PC(x) ((x & FIELD_MASK) | INC_12BIT(x));
+#define INC_PC(x) (((x) & FIELD_MASK) | INC_12BIT((x)));
 
 #define AND INSTR(0)
 #define TAD INSTR(1)
@@ -127,56 +127,8 @@ short operand_addr(short pc){
 
 int main ()
 {
-
-  //mem[0200] = OPR | IAC;
-  //mem[0201] = JMP | Z_MASK;
-
-  /* Program to output 'hej' */
-  /* mem[0010] = 0176; //Autoincrement */
-  /* mem[0177] = 'h'; */
-  /* mem[0200] = 'e'; */
-  /* mem[0201] = 'j'; */
-  /* mem[0202] = '\n'; */
-  /* mem[0203] = 0; */
-  /* mem[0204] = OPR | CLA; */
-  /* mem[0205] = TAD | I_MASK | 010; // Load char */
-  /* mem[0206] = OPR | OPR_G2 | OPR_AND | SNA; // Skip if AC NonZero */
-  /* mem[0207] = OPR | OPR_G2 | HLT; // Halt otherwise */
-  /* mem[0210] = JMS | Z_MASK | 020; */
-  /* mem[0211] = JMP | Z_MASK | 04; */
-
-  /* Program to echo input
-  mem[0200] = IOT | KCC | (03 << 3);
-  mem[0201] = JMS | Z_MASK | 030;
-  mem[0202] = JMS | Z_MASK | 020;
-  mem[0203] = JMP | Z_MASK | 0;
-
-  mem[0220] = 0;
-  mem[0221] = IOT | TSF | (04 << 3);
-  mem[0222] = JMP | Z_MASK | 021;
-  mem[0223] = IOT | TLS | (04 << 3);
-  mem[0224] = JMP | Z_MASK | I_MASK | 020;
-
-  mem[0230] = 0;
-  mem[0231] = IOT | KSF | (03 << 3);
-  mem[0232] = JMP | Z_MASK | 031;
-  mem[0233] = IOT | KRB | (03 << 3);
-  mem[0234] = JMP | Z_MASK | I_MASK | 030;
-
-  pc = 0200;
-
-    // 	TTYOUT,	.-.		/Write to TTY
-    //	/			  given character in ac
-    //	TTYOLP,	TSF		/ await input ready
-    //		JMP	TTYOLP
-    //		TLS		/ write character
-    //		JMP I	TTYOUT
-
-    */
-
-#include "binloader.h"
-
-  pc = 07647;
+#include "hello_world.h"
+    pc = 0200;
 
   // Setup console
   /* Set the completion callback. This will be called every time the
@@ -205,7 +157,7 @@ int main ()
     char input;
     char nchar = read(0, &input, 1);
     if( nchar || in_console ){
-      if( input == 05 || in_console ){
+      if( input == 033 || in_console ){
 	in_console = console();
       } else {
 	if( nchar && !tty_kb_flag ){
@@ -469,6 +421,7 @@ int main ()
 	  }
 	  if( cur & HLT ){
 	    in_console = 1;
+            printf(">>> CPU HALTED <<<\n");
 	  }
 	} else {
 	  // Group Three
@@ -542,6 +495,7 @@ void print_instruction(short pc)
       break;
     case OPR:
       printf(" OPR");
+      // TODO print more details.
       break;
     }
   }
@@ -557,7 +511,7 @@ char console()
   char *line;
   char done = 0;
   char in_console = 0;
-  while(!done && (line = linenoise(">>> ")) != NULL) {
+  while(!done && (line = linenoise(">> ")) != NULL) {
     if (line[0] != '\0' ) {
       linenoiseHistoryAdd(line);
       
@@ -569,6 +523,11 @@ char console()
       if( ! strncasecmp(skip_line, "s\0", 2) ){
 	print_instruction(pc);
 	in_console = 1;
+	done = 1;
+      }
+
+      if( ! strncasecmp(skip_line, "r\0", 2) ){
+	in_console = 0;
 	done = 1;
       }
       
