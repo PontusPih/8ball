@@ -77,6 +77,10 @@ short tty_tp_buf = 0;
 short tty_tp_flag = 1;
 short tty_dcr = 0; // device control register
 
+char tty_file[100] = "binloader.rim";
+char tty_read_from_file = 0;
+FILE *tty_fh = NULL;
+
 // TTY OP-codes:
 #define KCF 0
 #define KSF 1
@@ -127,8 +131,11 @@ short operand_addr(short pc){
 
 int main ()
 {
-#include "hello_world.h"
-    pc = 0200;
+    //#include "hello_world.h"
+    //    pc = 0200;
+
+#include "rimloader.h"
+    pc = 07756;
 
   // Setup console
   /* Set the completion callback. This will be called every time the
@@ -156,16 +163,31 @@ int main ()
     // TODO, interruptenable
     char input;
     char nchar = read(0, &input, 1);
-    if( nchar || in_console ){
-      if( input == 033 || in_console ){
-	in_console = console();
-      } else {
-	if( nchar && !tty_kb_flag ){
-	  // If keyboard flag is not set, try to read one char.
-	  tty_kb_buf = input;
-	  tty_kb_flag = 1;
-	}
-      }
+    if( nchar || in_console || tty_read_from_file ){
+        if( input == 033 || in_console ){
+            in_console = console();
+        }
+        
+        if( (nchar || tty_read_from_file) && !tty_kb_flag ){
+            // If keyboard flag is not set, try to read one char.
+            if( tty_read_from_file ){
+                int byte = fgetc( tty_fh );
+                printf( "read %d from file\n", byte);
+                if( byte != EOF ){
+                    tty_kb_buf = byte;
+                    tty_kb_flag = 1;
+                } else {
+                    printf("Reached end of TTY file, dropping to console. "
+                           "Further reads will be from keyboard\n");
+                    fclose( tty_fh );
+                    tty_read_from_file = 0;
+                    in_console = console();
+                }
+            } else {
+                tty_kb_buf = input;
+                tty_kb_flag = 1;
+            }
+        }
     }
 
     // TODO, proper DF-handling
@@ -181,6 +203,7 @@ int main ()
       break;
     case TAD:
       // Two complements add of AC and operand.
+      // TODO: Sign extension
       ac = (ac + mem[addr]) & LINK_AC_MASK;
       break;
     case ISZ:
@@ -231,6 +254,7 @@ int main ()
 	  tty_kb_flag = 0;
 	  ac &= LINK_MASK;
 	  ac |= (tty_kb_buf & B8_MASK);
+          break;
 	default:
 	  printf("illegal IOT instruction. device 03 - keyboard\n");
 	  in_console = 1;
@@ -458,9 +482,9 @@ int main ()
 void print_instruction(short pc)
 { 
   short cur = *(mem + pc);
-  short addr = operand_addr(pc);
+  //  short addr = operand_addr(pc);
 
-  printf("%.5o", pc);
+  printf("%.5o  %.5o", pc, cur);
 
   if( (cur & IF_MASK) <= JMP ){
     switch( cur & IF_MASK ){
@@ -506,6 +530,16 @@ void completion_cb(const char *buf, linenoiseCompletions *lc){
 
 }
 
+short read_12bit_octal(const char *buf)
+{
+    unsigned int res;
+    sscanf(buf, "%o", &res);
+    if( res > B12_MASK ){
+        printf("Octal value to large, truncated: %.5o\n", res & B12_MASK);
+    }
+    return (short)(res & B12_MASK);
+}
+
 char console()
 {
   char *line;
@@ -515,6 +549,7 @@ char console()
     if (line[0] != '\0' ) {
       linenoiseHistoryAdd(line);
       
+      // TODO ignore insignificant whitespace.
       char *skip_line = line;
       while( *skip_line == ' ' ){
 	skip_line++;
@@ -535,28 +570,60 @@ char console()
 	printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\n", pc, ac, mq, df, sr);
       }
 
+      if( ! strncasecmp(skip_line, "e ", 2) ){
+          skip_line += 2;
+          int start = read_12bit_octal(skip_line);
+          while( *skip_line != ' ' ){
+              skip_line++;
+          }
+
+          int end = read_12bit_octal(skip_line);
+
+          while( start <= end ){
+              print_instruction(start);
+              start++;
+          }
+      }
+
       if( ! strncasecmp(skip_line, "set ", 4) ){
 	skip_line += 4;
 	if( ! strncasecmp(skip_line, "pc=", 3) ){
 	  skip_line += 3;
-	  unsigned int res;
-	  sscanf(skip_line, "%o", &res);
-	  if( res > B12_MASK ){
-	    printf("Octal value to large, truncated: %.5o\n", res & B12_MASK);
-	  }
-	  pc = res & B12_MASK;
+          pc = read_12bit_octal(skip_line);
 	}
 
 	if( ! strncasecmp(skip_line, "sr=", 3) ){
 	  skip_line += 3;
-	  unsigned int res;
-	  sscanf(skip_line, "%o", &res);
-	  if( res > B12_MASK ){
-	    printf("Octal value to large, truncated: %.5o\n", res & B12_MASK);
-	  }
-	  sr = res & B12_MASK;
+          sr = read_12bit_octal(skip_line);
 	}
 
+        if( ! strncasecmp(skip_line, "tty_file=", 9) ){
+            if( tty_read_from_file ){
+                printf("Unable to set new file name, tty_file currently open\n");
+            } else {
+                skip_line += 9;
+                strncpy(tty_file, skip_line, 100);
+            }
+        }
+
+        if( ! strncasecmp(skip_line, "tty_src", 7) ){
+            tty_read_from_file = ! tty_read_from_file;
+            if( tty_read_from_file ){
+                tty_fh = fopen(tty_file,"r");
+                if( tty_fh == NULL ){
+                    tty_read_from_file = 0;
+                    printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
+                } else {
+                    printf("TTY input from file: \"%s\"\n", tty_file);
+                }
+            } else {
+                if( fclose(tty_fh) ){
+                    printf("Unable to close tty_file\n");
+                }
+                printf("TTY input from keyboard\n");
+            }
+        }
+        
       }
       
       if( ! strncasecmp(skip_line, "exit", 4) ){
