@@ -215,7 +215,7 @@ int main ()
       break;
     case DCA:
       // Deposit and Clear AC
-      mem[addr] = ac;
+      mem[addr] = (ac & B12_MASK);
       ac = 0;
       break;
     case JMS:
