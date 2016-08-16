@@ -114,7 +114,8 @@ struct termios told, tnew;
 void completion_cb(const char *buf, linenoiseCompletions *lc);
 char console();
 
-short operand_addr(short pc){
+short direct_addr(short pc)
+{
   short cur = *(mem+pc);
   short addr = 0;
 
@@ -127,7 +128,15 @@ short operand_addr(short pc){
   }
   
   addr |= cur & WORD_MASK;
-  
+
+  return addr;
+}
+
+short operand_addr(short pc)
+{
+  short cur = *(mem+pc);
+  short addr = direct_addr(pc);
+
   if( cur & I_MASK ){
     // indirect addressing
     if( (addr & (PAGE_MASK|WORD_MASK)) >= 010 
@@ -510,7 +519,7 @@ int main ()
 void print_instruction(short pc)
 { 
   short cur = *(mem + pc);
-  //  short addr = operand_addr(pc);
+  short addr = operand_addr(pc);
 
   printf("%.5o  %.5o", pc, cur);
 
@@ -535,11 +544,19 @@ void print_instruction(short pc)
       printf(" JMP");
       break;
     }
-    if( cur & I_MASK )
-      printf(" I");
-    if( cur & Z_MASK )
-      printf(" Z");
-    printf(" %.4o", cur & WORD_MASK);
+    if( ! (cur & Z_MASK) ) {
+      if( cur & I_MASK ){
+          printf(" I Z %.4o (%.4o)", direct_addr(pc), addr);
+      } else {
+          printf(" Z %.4o", addr);
+      }
+    } else {
+      if( cur & I_MASK ){
+          printf(" I %.4o (%.4o)", direct_addr(pc), addr);
+      } else {
+          printf(" %.4o", addr);
+      }
+    }
   } else {
     switch( cur & IF_MASK ){
     case IOT:
