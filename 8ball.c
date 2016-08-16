@@ -504,7 +504,7 @@ int main ()
 	  } else {
 	    // Otherwise apply MQA or MQL separately
 	    if( cur & MQA ){
-	      ac = (ac & B12_MASK) | (mq & B12_MASK);
+	      ac = ac | (mq & B12_MASK);
 	    }
 	    
 	    if( cur & MQL ){
