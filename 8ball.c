@@ -663,8 +663,104 @@ void print_instruction(short pc)
       }
       break;
     case OPR:
-      printf(" OPR");
-      // TODO print more details.
+      if( ! (cur & OPR_G2) ){
+          if( cur & CLA ){
+              printf(" CLA");
+          }
+
+          if( cur & CLL ){
+              printf(" CLL");
+          }
+
+          if( cur & CMA ){
+              printf(" CMA");
+          }
+
+          if( cur & CML ){
+              printf(" CML");
+          }
+
+          if( cur & IAC ){
+              printf(" IAC");
+          }
+
+          if( cur & RAR ){
+              if( cur & BSW ){
+                  printf(" BTR");
+              } else {
+                  printf(" RAR");
+              }
+          }
+
+          if( cur & RAL ){
+              if( cur & BSW ){
+                  printf(" RTL");
+              } else {
+                  printf(" RAL");
+              }
+          }
+
+          if( ( cur & (RAR|RAL|BSW) ) == BSW ){
+              printf(" BSW");
+          }
+
+      } else {
+          if( ! (cur & OPR_G3 ) ){
+              if( ! (cur & OPR_AND) ) {
+                  if( cur & SMA ){
+                      printf(" SMA");
+                  }
+
+                  if( cur & SZA ){
+                      printf(" SZA");
+                  }
+
+                  if( cur & SNL ){
+                      printf(" SNL");
+                  }
+
+                  if( cur & CLA ){
+                      printf(" CLA");
+                  }
+              } else {
+                  if( cur & SPA ){
+                      printf(" SPA");
+                  }
+
+                  if( cur & SNA ){
+                      printf(" SNA");
+                  }
+
+                  if( cur & SZL ){
+                      printf(" SZL");
+                  }
+
+                  if( cur & CLA ){
+                      printf(" CLA");
+                  }
+              }
+
+              if( cur & OSR ){
+                  printf(" OSR");
+                  // TODO print more detail.
+              }
+              if( cur & HLT ){
+                  printf(" HLT");
+              }
+          } else {
+              if( cur & CLA ){
+                  printf(" CLA");
+              }
+
+              if( cur & MQA ){
+                  printf(" MQA");
+              }
+
+              if( cur & MQL ){
+                  printf(" MQL");
+              }
+          }
+      }
       break;
     }
   }
