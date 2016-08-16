@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include "linenoise.h"
 
 #define MEMSIZE 0100000
@@ -96,6 +97,17 @@ FILE *tty_fh = NULL;
 #define TSK 5
 #define TLS 6
 
+char in_console = 1;
+
+void signal_handler(int signo)
+{
+    if(signo == SIGINT) {
+        // Catch Ctrl+c and drop to console.
+        printf("SIGINT caught, dropping to console.\n");
+        in_console = 1;
+    }
+}
+
 // termios globals
 struct termios told, tnew;
 
@@ -155,7 +167,11 @@ int main ()
   tnew.c_cc[VTIME] = 0; // But block for one tenth of a second.
   tcsetattr(0, TCSANOW, &tnew);
 
-  char in_console = 1;
+  // Setup signal handler.
+  if( signal(SIGINT, signal_handler) ){
+      printf("Unable to setup signal handler\n");
+      exit(1);
+  }
 
   while(1){
 
