@@ -133,7 +133,9 @@ short direct_addr(short pc)
   return addr;
 }
 
-short operand_addr(short pc)
+// Memory access modifies some magic addresses. If "examine" is
+// non-zero, no modification is done.
+short operand_addr(short pc, char examine)
 {
   short cur = *(mem+pc);
   short addr = direct_addr(pc);
@@ -142,7 +144,9 @@ short operand_addr(short pc)
     // indirect addressing
     if( (addr & (PAGE_MASK|WORD_MASK)) >= 010 
 	&& 
-	(addr & (PAGE_MASK|WORD_MASK)) <= 017 ){
+	(addr & (PAGE_MASK|WORD_MASK)) <= 017
+        &&
+        ! examine ){
       // autoindex addressing
       mem[addr] = (mem[addr]+1) & B12_MASK;
     }
@@ -218,7 +222,7 @@ int main ()
 
     // TODO, proper DF-handling
     short cur = *(mem+pc);
-    short addr = operand_addr(pc);
+    short addr = operand_addr(pc, 0);
 
     pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
     
@@ -520,7 +524,7 @@ int main ()
 void print_instruction(short pc)
 { 
   short cur = *(mem + pc);
-  short addr = operand_addr(pc);
+  short addr = operand_addr(pc, 1);
 
   printf("%.5o  %.5o", pc, cur);
 
