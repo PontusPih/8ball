@@ -854,6 +854,11 @@ char console()
           sr = read_12bit_octal(skip_line);
 	}
 
+        if( ! strncasecmp(skip_line, "ac=", 3) ){
+	  skip_line += 3;
+          ac = read_12bit_octal(skip_line);
+	}
+
         if( ! strncasecmp(skip_line, "tty_file=", 9) ){
             if( tty_read_from_file ){
                 printf("Unable to set new file name, tty_file currently open\n");
