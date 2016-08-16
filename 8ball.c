@@ -410,8 +410,8 @@ int main ()
 
 	if( ( cur & (RAR|RAL|BSW) ) == BSW ){
 	  // Byte Swap.
-	  char msb = (ac & 07700) >> 6;
-	  char lsb = (ac & 00077) << 6;
+	  short msb = (ac & 07700) >> 6;
+	  short lsb = (ac & 00077) << 6;
 	  ac = (ac & LINK_MASK) | msb | lsb;
 	}
 
