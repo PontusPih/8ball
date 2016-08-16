@@ -21,6 +21,7 @@
 #define LINK (ac & LINK_MASK)
 #define DEV_MASK 0770
 #define IOT_OP_MASK 07
+#define MMU_DI_MASK 070
 
 #define INSTR(x) ((x)<<9)
 #define INC_12BIT(x) (((x)+1) & B12_MASK)
@@ -560,7 +561,106 @@ void print_instruction(short pc)
   } else {
     switch( cur & IF_MASK ){
     case IOT:
-      printf(" IOT");
+      switch( (cur & DEV_MASK) >> 3 ){
+      // KL8E (device code 03 and 04)
+      case 03: // Console tty input
+          switch( cur & IOT_OP_MASK ){
+          case KCF:
+              printf(" KCF");
+              break;
+          case KSF:
+              printf(" KSF");
+              break;
+          case KCC:
+              printf(" KCC");
+              break;
+          case KRS:
+              printf(" KRS");
+              break;
+          case KIE:
+              printf(" KIE");
+              break;
+          case KRB:
+              printf(" KRB");
+              break;
+          default:
+              printf("illegal IOT instruction. device 03 - keyboard\n");
+              break;
+          }
+          break;
+      case 04: // Console tty output
+          switch( cur & IOT_OP_MASK ){
+          case TFL:
+              printf(" TFL");
+              break;
+          case TSF:
+              printf(" TSF");
+              break;
+          case TCF:
+              printf(" TCF");
+              break;
+          case TPC:
+              printf(" TPC");
+              break;
+          case TSK:
+              printf(" TSK");
+              break;
+          case TLS:
+              printf(" TLS");
+              break;
+          default:
+              printf("illegal IOT instruction. device 04 - TTY output\n");
+              in_console = 1;
+              break;
+          }
+          break;
+      case 020:
+      case 021:
+      case 022:
+      case 023:
+      case 024:
+      case 025:
+      case 026:
+      case 027: // Memory management
+          switch( cur & IOT_OP_MASK ){
+          case 01:
+              printf(" CDF");
+              break;
+          case 02:
+              printf(" CIF");
+              break;
+          case 03:
+              printf(" CDI");
+              break;
+          case 04:
+              // Mask out the "FIELD" bits which are OPCODES here.
+              switch( (cur & MMU_DI_MASK) >> 3 ){
+              case 01:
+                  printf(" RDF");
+                  break;
+              case 02:
+                  printf(" RIF");
+                  break;
+              case 03:
+                  printf(" RIB");
+                  break;
+              case 04:
+                  printf(" RMF");
+                  break;
+              default:
+                  printf(" illegal IOT instruction. MMU(1) device");
+                  break;
+              }
+              break;
+          default:
+              printf(" illegal IOT instruction. MMU(2) device");
+              break;
+          }
+          break;
+      default:
+          printf(" IOT Device: %.3o", (cur & DEV_MASK) >> 3);
+          break;
+      }
       break;
     case OPR:
       printf(" OPR");
