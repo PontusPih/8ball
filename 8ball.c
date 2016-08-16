@@ -811,8 +811,20 @@ char console()
 	done = 1;
       }
       
-      if( ! strncasecmp(skip_line, "d\0", 2) ){
+      if( ! strncasecmp(skip_line, "show\0", 2) ){
 	printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\n", pc, ac, mq, df, sr);
+      }
+
+      if( ! strncasecmp(skip_line, "d ", 2) ){
+          // deposit
+          skip_line += 2;
+          int addr = read_12bit_octal(skip_line);
+          while( *skip_line != ' ' ){
+              skip_line++;
+          }
+
+          int val = read_12bit_octal(skip_line);
+          mem[addr] = val;
       }
 
       if( ! strncasecmp(skip_line, "e ", 2) ){
