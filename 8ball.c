@@ -314,8 +314,20 @@ int main ()
 	  break;
 	}
 	break;
+      case 020:
+      case 021:
+      case 022:
+      case 023:
+      case 024:
+      case 025:
+      case 026:
+      case 027:
+          printf("IOT unsupported memory management instruction: NOP\n");
+          break;
       default:
-	printf("Illegal IOT instruction, unknown device");
+        printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
+        break;
+        // in_console = 1;
       }
       break;
     case OPR:
