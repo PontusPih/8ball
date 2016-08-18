@@ -228,8 +228,8 @@ int main ()
     
     switch( cur & IF_MASK ){
     case AND:
-      // AND AC and operand.
-      ac &= mem[addr];
+      // AND AC and operand, preserve LINK.
+      ac &= (mem[addr] | LINK_MASK);
       break;
     case TAD:
       // Two complements add of AC and operand.
