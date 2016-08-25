@@ -264,27 +264,17 @@ int main ()
     }
 
     if( ion_deferred ){
-        // ION has been executed and ion_deferred was set to 2.
-        //
-        // ION is not set until the following intruction has
-        // executed. So ion is set after PC is incremented the second
-        // time.
-        if( ion_deferred == 1 ){
-            ion = 1;
-        }
-        ion_deferred--;
+        // ION is not set until the following intruction has been
+        // fetched.
+        ion = 1;
+        ion_deferred=0;
     }
 
     if( rtf_deferred ){
-        // RTF has been executed and rtf_deferred was set to 2.
-        //
-        // ION is not restored until the following intruction has
-        // executed. So ion is set after PC is incremented the second
-        // time.
-        if( rtf_deferred == 1 ){
-            ion = rtf_ion;
-        }
-        rtf_deferred--;
+        // RTF has been executed and ION is not restored until the
+        // following intruction has been fetched.
+        ion = rtf_ion;
+        rtf_deferred=0;
     }
     
     switch( cur & IF_MASK ){
@@ -329,7 +319,7 @@ int main ()
             }
           break;
         case ION:
-            ion_deferred = 2;
+            ion_deferred = 1;
           break;
         case IOF:
             ion = 0;
@@ -344,7 +334,7 @@ int main ()
             ac = (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
           break;
         case RTF:
-            rtf_deferred = 2;
+            rtf_deferred = 1;
             rtf_ion = (ac >> 7) & 1;
             ac |= ((ac << 1) & LINK_MASK); //restore LINK bit.
             pc |= ((ac << 9) & FIELD_MASK); //restore IF
