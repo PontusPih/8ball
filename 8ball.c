@@ -26,6 +26,7 @@
 #define MMU_DI_MASK 070
 
 #define INSTR(x) ((x)<<9)
+// TODO use INC_12BIT in more places
 #define INC_12BIT(x) (((x)+1) & B12_MASK)
 #define INC_PC(x) (((x) & FIELD_MASK) | INC_12BIT((x)));
 
@@ -251,8 +252,8 @@ int main ()
     }
 
     // TODO, proper DF-handling
-    short cur = *(mem+pc);
-    short addr = operand_addr(pc, 0);
+    short cur = *(mem+pc); // Much like MB register
+    short addr = operand_addr(pc, 0); // Much like CPMA register
 
     pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
 
@@ -412,7 +413,7 @@ int main ()
 	case TPC:
 	  tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
 	  write(1, &tty_tp_buf, 1);
-	  // TODO "async" output?
+	  // TODO nonblocking output?
 	  tty_tp_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
               intr = 1;
@@ -427,7 +428,7 @@ int main ()
 	  tty_tp_flag = 0;
 	  tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
 	  write(1, &tty_tp_buf, 1);
-	  // TODO "async" output?
+	  // TODO nonblocking output?
 	  tty_tp_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
               intr = 1;
@@ -877,6 +878,9 @@ void print_instruction(short pc)
               if( cur & MQL ){
                   printf(" MQL");
               }
+
+              // TODO CLA & MQL is called CAM in some assemblers, support?
+              //      MQA & MQL is called SWP in some assemblers.
           }
       }
       break;
