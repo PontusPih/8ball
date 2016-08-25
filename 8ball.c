@@ -8,6 +8,7 @@
 
 #define MEMSIZE 0100000
 #define FIELD_MASK 070000
+#define DF_MASK 00003
 #define PAGE_MASK 07600
 #define WORD_MASK 0177
 #define B12_MASK 07777
@@ -18,7 +19,7 @@
 #define Z_MASK 00200
 #define I_MASK 00400
 #define SIGN_BIT_MASK 04000
-#define LINK (ac & LINK_MASK)
+#define LINK ((ac & LINK_MASK) >> 12)
 #define DEV_MASK 0770
 #define IOT_OP_MASK 07
 #define MMU_DI_MASK 070
@@ -63,6 +64,15 @@
 #define MQA 0100
 #define MQL 0020
 
+#define SKON 00
+#define ION 01
+#define IOF 02
+#define SRQ 03
+#define GTF 04
+#define RTF 05
+#define SGT 06
+#define CAF 07
+
 short mem[MEMSIZE];
 
 // CPU registers
@@ -70,14 +80,30 @@ short pc = 0200;
 short df;
 short ac = 0;
 short mq;
-short sr = 05252;
+short sr = 07777;
+short ion = 0; // Interrupt enable flipflop
+short ion_deferred = 0; //ion will be set in this many instructions
+short rtf_deferred = 0; //ion will be set in this many instructions
+short rtf_ion;
+short intr = 0; // Interrupt requested flag
 
 // TTY registers
 short tty_kb_buf = 0;
 short tty_kb_flag = 0;
 short tty_tp_buf = 0;
-short tty_tp_flag = 1;
+short tty_tp_flag = 0;
 short tty_dcr = 0; // device control register
+
+#define TTY_SE_MASK 02
+#define TTY_IE_MASK 01
+
+void tty_reset(){
+    tty_kb_buf = 0;
+    tty_kb_flag = 0;
+    tty_tp_buf = 0;
+    tty_tp_flag = 0;
+    tty_dcr = 0;
+}
 
 char tty_file[100] = "binloader.rim";
 char tty_read_from_file = 0;
@@ -216,6 +242,9 @@ int main ()
             } else {
                 tty_kb_buf = input;
                 tty_kb_flag = 1;
+                if( tty_dcr & TTY_IE_MASK ){
+                    intr = 1;
+                }
             }
         }
     }
@@ -225,6 +254,36 @@ int main ()
     short addr = operand_addr(pc, 0);
 
     pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
+
+    if( ion && intr ){
+        // An interrupt occured, disable interrupts, force JMS to 0000
+        cur = JMS;
+        addr = 0;
+    }
+
+    if( ion_deferred ){
+        // ION has been executed and ion_deferred was set to 2.
+        //
+        // ION is not set until the following intruction has
+        // executed. So ion is set after PC is incremented the second
+        // time.
+        if( ion_deferred == 1 ){
+            ion = 1;
+        }
+        ion_deferred--;
+    }
+
+    if( rtf_deferred ){
+        // RTF has been executed and rtf_deferred was set to 2.
+        //
+        // ION is not restored until the following intruction has
+        // executed. So ion is set after PC is incremented the second
+        // time.
+        if( rtf_deferred == 1 ){
+            ion = rtf_ion;
+        }
+        rtf_deferred--;
+    }
     
     switch( cur & IF_MASK ){
     case AND:
@@ -259,6 +318,48 @@ int main ()
       break;
     case IOT:
       switch( (cur & DEV_MASK) >> 3 ){
+      case 00: // Interrupt control
+        switch( cur & IOT_OP_MASK ){
+        case SKON:
+            if( ion ){
+                pc = INC_PC(pc);
+                ion = 0;
+            }
+          break;
+        case ION:
+            ion_deferred = 2;
+          break;
+        case IOF:
+            ion = 0;
+          break;
+        case SRQ:
+            if( intr ){
+                pc = INC_PC(pc);
+            }
+          break;
+        case GTF:
+            // TODO add more fields as support is added. (GT, II, and U)
+            ac = (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
+          break;
+        case RTF:
+            rtf_deferred = 2;
+            rtf_ion = (ac >> 7) & 1;
+            ac |= ((ac << 1) & LINK_MASK); //restore LINK bit.
+            pc |= ((ac << 9) & FIELD_MASK); //restore IF
+            df = ac & DF_MASK;
+            // TODO restore more fields. (GT, II, and U);
+          break;
+        case SGT:
+            // TODO add with EAE support
+          break;
+        case CAF:
+            // TODO reset supported devices. Reset MMU interrupt inhibit flipflop
+            tty_reset();
+            tty_dcr = TTY_IE_MASK;
+            ac = ion = intr = 0;
+          break;
+        }
+        break;
       // KL8E (device code 03 and 04)
       case 03: // Console tty input
 	switch( cur & IOT_OP_MASK ){
@@ -278,7 +379,7 @@ int main ()
 	  ac |= (tty_kb_buf & B8_MASK);
 	  break;
 	case KIE:
-	  tty_dcr = ac & 01; // Write IE bit of ac to DCR (SE not supported).
+	  tty_dcr = ac & TTY_IE_MASK; // Write IE bit of ac to DCR (SE not supported).
 	  break;
 	case KRB:
 	  tty_kb_flag = 0;
@@ -295,6 +396,9 @@ int main ()
 	switch( cur & IOT_OP_MASK ){
 	case TFL:
 	  tty_tp_flag = 1;
+          if( tty_dcr & TTY_IE_MASK ){
+              intr = 1;
+          }
 	  break;
 	case TSF:
 	  if( tty_tp_flag ){
@@ -309,6 +413,9 @@ int main ()
 	  write(1, &tty_tp_buf, 1);
 	  // TODO "async" output?
 	  tty_tp_flag = 1;
+          if( tty_dcr & TTY_IE_MASK ){
+              intr = 1;
+          }
 	  break;
 	case TSK:
 	  if( tty_tp_flag || tty_kb_flag ){
@@ -321,6 +428,9 @@ int main ()
 	  write(1, &tty_tp_buf, 1);
 	  // TODO "async" output?
 	  tty_tp_flag = 1;
+          if( tty_dcr & TTY_IE_MASK ){
+              intr = 1;
+          }
 	  break;
 	default:
 	  printf("illegal IOT instruction. device 04 - TTY output\n");
@@ -566,6 +676,9 @@ void print_instruction(short pc)
     switch( cur & IF_MASK ){
     case IOT:
       switch( (cur & DEV_MASK) >> 3 ){
+      case 00:
+          // TODO interrupt control instructions.
+          break;
       // KL8E (device code 03 and 04)
       case 03: // Console tty input
           switch( cur & IOT_OP_MASK ){
