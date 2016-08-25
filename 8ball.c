@@ -858,6 +858,10 @@ void print_instruction(short pc)
                   if( cur & CLA ){
                       printf(" CLA");
                   }
+
+                  if( ! (cur & (SPA|SNA|SZL)) ){
+                      printf(" SKP");
+                  }
               }
 
               if( cur & OSR ){
