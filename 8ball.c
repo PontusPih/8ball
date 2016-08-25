@@ -600,6 +600,7 @@ int main ()
 	  if( cur & HLT ){
 	    in_console = 1;
             printf(">>> CPU HALTED <<<\n");
+            printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\n", pc, ac, mq, df, sr);
 	  }
 	} else {
 	  // Group Three
@@ -919,6 +920,7 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "s\0", 2) ){
+        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\t\t", pc, ac, mq, df, sr);
 	print_instruction(pc);
 	in_console = 1;
 	done = 1;
