@@ -894,7 +894,7 @@ void print_instruction(short pc)
   printf("\n");
 }
 
-void completion_cb(const char *buf, linenoiseCompletions *lc){
+void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unused)) linenoiseCompletions *lc){
 
 }
 
