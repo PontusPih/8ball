@@ -13,6 +13,7 @@
 #define WORD_MASK 0177
 #define B12_MASK 07777
 #define B8_MASK 0377
+#define B7_MASK 0177
 #define IF_MASK 07000
 #define LINK_MASK 010000
 #define LINK_AC_MASK 017777
@@ -409,7 +410,7 @@ int main ()
 	  tty_tp_flag = 0;
 	  break;
 	case TPC:
-	  tty_tp_buf = (ac & B8_MASK);
+	  tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
 	  write(1, &tty_tp_buf, 1);
 	  // TODO "async" output?
 	  tty_tp_flag = 1;
@@ -424,7 +425,7 @@ int main ()
 	  break;
 	case TLS:
 	  tty_tp_flag = 0;
-	  tty_tp_buf = (ac & B8_MASK);
+	  tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
 	  write(1, &tty_tp_buf, 1);
 	  // TODO "async" output?
 	  tty_tp_flag = 1;
