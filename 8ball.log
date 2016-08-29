@@ -1,0 +1,66 @@
+Initial entry: 19-AUG-2016
+
+Writing a PDP-8 emulator is amazingly fun. I've known about the PDP-8
+for many years, I've even had the oportunity to se a working one and
+help write small programs for a specific purpose. But that was a few
+years ago and I had forgotten most of it when I started 8ball.
+
+Writing the bulk of the CPU and Serial interface emulation took no
+more than a few nights with a few hours of coding and studying
+[1]Douglas W. Jones "A Programmer's Reference Manual", which is a
+greate resource for anyone wanting to learn about the PDP-8 internals.
+
+So, 10 hours _maximum_ to have a basic CPU implementation. I probably
+spent an equal amount of time, if not more, getting the terminal
+handling right and figuring out how to read paper tape images from
+file.
+
+The first test was a simple hello world program. <TODO date>
+
+But the first hurdle was really getting the RIM loader to work. I was
+eager to get the MAINDEC cpu diagnostics running so I figured I would
+input a BIN-loader by hand but the first BIN-loader image I found was
+somehow not correct or I made to many misstakes entering it. I figured
+it was too many variables and took a step back and entered the RIM
+loader manually, loaded the binloader and fixed a few bugs along the
+way.
+
+Initially I debugged the emulator using gdb, but it quickly became
+cumbersome to jump between a running emulator, the emulator console
+and the gdb console so I implemented a single step command to the
+console, much like the single step switch available on a real
+PDP-8/e. And I also implemented a simple dissasembler so that I can
+examine memory and quickly compare it to code listings and see what is
+going. I expanded the dissasembly during the course of running the
+first MAINDEC.
+
+When I finally got all the bits together to load the CPU instruction
+test it took only a day or so to iron out the last basic instruction
+set bugs and have the first MAINDEC pass! Testdriven development is
+great!
+
+Update: 29-AUG-2016
+
+I got the next MAINDEC out of the pile 8E-D0BB which tests indirect
+addressing, autoindexing and foremost the interrupt system. The memory
+test passed with flying colors so I had wrap my head arround PDP-8
+interrupts and make a rudimentary implementation. I quickly ironed out
+the basics but got stuck a while with ION and the delay with turning
+the interrupt system on. Doug's otherwise excellent manual is subtly
+wrong in his description of ION. He states that the interrupt system
+is turned on after the instrucion following ION when in fact it's
+turned on after the PC is incremented during the following instruction
+FETCH cycle. This probably only matters in the ION IOF sequence that
+of course is present in the D0BB test suite :)
+
+Then I struggled a while figuring out when the interrupt request line
+should be turned off. I'm still not sure I got the details right, but
+the test are passing now. Doug's description of RTF misses the fact
+that RTF always turns on interrupts, regardless of the flag in AC.
+
+D0BB also revealed some other smaller bugs and I of course added
+dissasembly of the new instructions as well as improved emulation of
+the TTY (it's 7 bit, not 8).
+
+Surprisingly my DCA implementation cleared the LINC bit, which it
+shouldn't, but no test caught it thus far.
