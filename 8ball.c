@@ -272,7 +272,7 @@ int main ()
 
     if( ion_deferred ){
         // BUG? TODO What if an interrupt occurs between two ION instructions?
-        // ION is not set until the following intruction has been
+        // ION is not set until the following instruction has been
         // fetched.
         ion = 1;
         ion_deferred=0;
@@ -280,11 +280,11 @@ int main ()
 
     if( rtf_deferred ){
         // RTF has been executed and ION is not restored until the
-        // following intruction has been fetched.
+        // following instruction has been fetched.
         ion = 1; // rtf_ion; Apparently RTF always sets ION.
         rtf_deferred=0;
     }
-    
+
     switch( cur & IF_MASK ){
     case AND:
       // AND AC and operand, preserve LINK.
