@@ -89,6 +89,7 @@ short ion_deferred = 0; //ion will be set in this many instructions
 short rtf_deferred = 0; //ion will be set in this many instructions
 short rtf_ion;
 short intr = 0; // Interrupt requested flag
+// TODO add F D E state bits
 
 // TTY registers
 short tty_kb_buf = 0;
@@ -656,6 +657,7 @@ void print_instruction(short pc)
       printf(" JMP");
       break;
     }
+    // TODO print value of memory cell referenced.
     if( ! (cur & Z_MASK) ) {
       if( cur & I_MASK ){
           printf(" I Z %.4o (%.4o)", direct_addr(pc), addr);
@@ -1037,6 +1039,7 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "exit", 4) ){
+          // TODO dump memory to prev.core
 	tcsetattr(0, TCSANOW, &told);
 	exit(0);
       }
