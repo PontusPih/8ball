@@ -274,7 +274,7 @@ int main ()
     if( rtf_deferred ){
         // RTF has been executed and ION is not restored until the
         // following intruction has been fetched.
-        ion = rtf_ion;
+        ion = 1; // rtf_ion; Apparently RTF always sets ION.
         rtf_deferred=0;
     }
     
@@ -337,9 +337,10 @@ int main ()
           break;
         case RTF:
             rtf_deferred = 1;
-            rtf_ion = (ac >> 7) & 1;
-            ac |= ((ac << 1) & LINK_MASK); //restore LINK bit.
-            pc |= ((ac << 9) & FIELD_MASK); //restore IF
+            // Apparently RTF allways sets ION irregardles of the ION bit in AC.
+            // rtf_ion = (ac >> 7) & 1;
+            ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
+            pc = ((ac << 9) & FIELD_MASK) | (pc & (PAGE_MASK | WORD_MASK)); //restore IF
             df = ac & DF_MASK;
             // TODO restore more fields. (GT, II, and U);
           break;
