@@ -257,16 +257,20 @@ int main ()
     short cur = *(mem+pc); // Much like MB register
     short addr = operand_addr(pc, 0); // Much like CPMA register
 
-    pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
-
     if( ion && intr ){
         // An interrupt occured, disable interrupts, force JMS to 0000
         cur = JMS;
         addr = 0;
         ion = 0;
+    } else {
+        // Don't increment PC in case of an interrupt. An interrupt
+        // actually occurs at the end of an execution cycle, before
+        // the next fetch cycle.
+        pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
     }
 
     if( ion_deferred ){
+        // BUG? TODO What if an interrupt occurs between two ION instructions?
         // ION is not set until the following intruction has been
         // fetched.
         ion = 1;
