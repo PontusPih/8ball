@@ -17,6 +17,7 @@
 #define IF_MASK 07000
 #define LINK_MASK 010000
 #define LINK_AC_MASK 017777
+#define AC_MASK 07777
 #define Z_MASK 00200
 #define I_MASK 00400
 #define SIGN_BIT_MASK 04000
@@ -459,12 +460,12 @@ int main ()
 
 	if( cur & CLL ){
 	  // CLear Link
-	  ac &= B12_MASK;
+	  ac &= AC_MASK;
 	}
 	
 	if( cur & CMA ){
 	  // Complement AC
-	  ac = ac ^ B12_MASK;
+	  ac = ac ^ AC_MASK;
 	}
 	
 	if( cur & CML ){
@@ -532,7 +533,7 @@ int main ()
 	      do_skip = 1;
 	    }
 	    
-	    if( cur & SZA && ! (ac & B12_MASK) ){
+	    if( cur & SZA && ! (ac & AC_MASK) ){
 	      // Skip if Zero Accumulator
 	      do_skip = 1;
 	    }
@@ -565,7 +566,7 @@ int main ()
 	      spa_skip = 0;
 	    }
 	    
-	    if( cur & SNA && !(ac & B12_MASK) ){
+	    if( cur & SNA && !(ac & AC_MASK) ){
 	      // Skip if Nonzero Accumulator
 	      // Test for zero accumlator
 	      sna_skip = 0;
@@ -605,7 +606,7 @@ int main ()
 	  if( (cur & MQA) && (cur & MQL) ){
 	    // Swap ac and mq
 	    short tmp = mq & B12_MASK;
-	    mq = ac & B12_MASK;
+	    mq = ac & AC_MASK;
 	    ac = tmp;
 	  } else {
 	    // Otherwise apply MQA or MQL separately
@@ -614,7 +615,7 @@ int main ()
 	    }
 	    
 	    if( cur & MQL ){
-	      mq = ac & B12_MASK;
+	      mq = ac & AC_MASK;
 	      ac = ac & LINK_MASK;
 	    }
 	  }
