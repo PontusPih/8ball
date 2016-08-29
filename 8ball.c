@@ -263,6 +263,7 @@ int main ()
         cur = JMS;
         addr = 0;
         ion = 0;
+        intr = 0;
     } else {
         // Don't increment PC in case of an interrupt. An interrupt
         // actually occurs at the end of an execution cycle, before
@@ -409,6 +410,7 @@ int main ()
 	  break;
 	case TCF:
 	  tty_tp_flag = 0;
+          intr = 0; // TODO device specific intr
 	  break;
 	case TPC:
 	  tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
