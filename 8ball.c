@@ -79,7 +79,7 @@ short mem[MEMSIZE];
 
 // CPU registers
 short pc = 0200;
-short df;
+short df = 0;
 short ac = 0;
 short mq;
 short sr = 07777;
@@ -331,7 +331,8 @@ int main ()
           break;
         case GTF:
             // TODO add more fields as support is added. (GT, II, and U)
-            ac = (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
+            ac = (ac & LINK_MASK) | // preserve LINK
+                 (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
           break;
         case RTF:
             rtf_deferred = 1;
