@@ -595,7 +595,7 @@ int main ()
 	  if( cur & HLT ){
 	    in_console = 1;
             printf(">>> CPU HALTED <<<\n");
-            printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\n", pc, ac, mq, df, sr);
+            printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o\n", pc, ac, mq, df, sr, ion);
 	  }
 	} else {
 	  // Group Three
@@ -950,7 +950,7 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "s\0", 2) ){
-        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\t\t", pc, ac, mq, df, sr);
+        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o\t\t", pc, ac, mq, df, sr, ion);
 	print_instruction(pc);
 	in_console = 1;
 	done = 1;
@@ -962,7 +962,7 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "show\0", 2) ){
-	printf("PC = %o AC = %o MQ = %o DF = %o SR = %o\n", pc, ac, mq, df, sr);
+        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o, ION = %o\n", pc, ac, mq, df, sr, ion);
       }
 
       if( ! strncasecmp(skip_line, "d ", 2) ){
