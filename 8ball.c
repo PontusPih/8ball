@@ -261,6 +261,7 @@ int main ()
         // An interrupt occured, disable interrupts, force JMS to 0000
         cur = JMS;
         addr = 0;
+        ion = 0;
     }
 
     if( ion_deferred ){
