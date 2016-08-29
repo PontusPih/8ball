@@ -850,6 +850,10 @@ void print_instruction(short pc)
               printf(" BSW");
           }
 
+          if( cur == OPR ){
+              printf(" NOP");
+          }
+
       } else {
           if( ! (cur & OPR_G3 ) ){
               if( ! (cur & OPR_AND) ) {
