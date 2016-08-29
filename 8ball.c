@@ -673,9 +673,39 @@ void print_instruction(short pc)
     switch( cur & IF_MASK ){
     case IOT:
       switch( (cur & DEV_MASK) >> 3 ){
-      case 00:
-          // TODO interrupt control instructions.
+      case 00: // Interrupt control
+        switch( cur & IOT_OP_MASK ){
+        case SKON:
+            printf(" SKON");
           break;
+        case ION:
+            printf(" ION");
+          break;
+        case IOF:
+            printf(" IOF");
+          break;
+        case SRQ:
+            printf(" SRQ");
+          break;
+        case GTF:
+            // TODO add more fields as support is added. (GT, II, and U)
+            printf(" GTF (LINK = %o INTR = %o ION = %o IF = %o DF = %o)",
+                   LINK, intr, ion, ((pc & FIELD_MASK) >> 9), df);
+          break;
+        case RTF:
+            // TODO restore more fields. (GT, II, and U);
+            printf(" RTF (LINK = %o ION = %o IF = %o DF = %o)",
+                   (ac >> 11) & 1, (ac >> 7) & 1, (ac >> 3) & 0b111, ac & DF_MASK);
+          break;
+        case SGT:
+            // TODO add with EAE support
+            printf(" SGT");
+          break;
+        case CAF:
+            printf(" CAF");
+          break;
+        }
+        break;
       // KL8E (device code 03 and 04)
       case 03: // Console tty input
           switch( cur & IOT_OP_MASK ){
