@@ -296,8 +296,8 @@ int main ()
       break;
     case DCA:
       // Deposit and Clear AC
-      mem[addr] = (ac & B12_MASK);
-      ac = 0;
+      mem[addr] = (ac & AC_MASK);
+      ac = (ac & LINK_MASK);
       break;
     case JMS:
       // Jump and store return address.
