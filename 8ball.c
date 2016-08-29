@@ -144,6 +144,7 @@ struct termios told, tnew;
 
 void completion_cb(const char *buf, linenoiseCompletions *lc);
 char console();
+void print_regs();
 
 short direct_addr(short pc)
 {
@@ -599,7 +600,8 @@ int main ()
 	  if( cur & HLT ){
 	    in_console = 1;
             printf(">>> CPU HALTED <<<\n");
-            printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o\n", pc, ac, mq, df, sr, ion);
+            print_regs();
+            printf("\n");
 	  }
 	} else {
 	  // Group Three
@@ -932,6 +934,11 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 
 }
 
+void print_regs()
+{
+    printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o", pc, ac, mq, df, sr, ion);
+}
+
 short read_12bit_octal(const char *buf)
 {
     unsigned int res;
@@ -958,7 +965,8 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "s\0", 2) ){
-        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o\t\t", pc, ac, mq, df, sr, ion);
+        print_regs();
+        printf("\t\t");
 	print_instruction(pc);
 	in_console = 1;
 	done = 1;
@@ -970,7 +978,8 @@ char console()
       }
       
       if( ! strncasecmp(skip_line, "show\0", 2) ){
-        printf("PC = %o AC = %o MQ = %o DF = %o SR = %o, ION = %o\n", pc, ac, mq, df, sr, ion);
+        print_regs();
+        printf("\n");
       }
 
       if( ! strncasecmp(skip_line, "d ", 2) ){
