@@ -232,7 +232,7 @@ int main ()
             // If keyboard flag is not set, try to read one char.
             if( tty_read_from_file ){
                 int byte = fgetc( tty_fh );
-                printf( "read %d from file\n", byte);
+                // printf( "read %d from file\n", byte);
                 if( byte != EOF ){
                     tty_kb_buf = byte;
                     tty_kb_flag = 1;
@@ -443,7 +443,7 @@ int main ()
       case 025:
       case 026:
       case 027:
-          printf("IOT unsupported memory management instruction: NOP\n");
+          // printf("IOT unsupported memory management instruction: NOP\n");
           break;
       default:
         printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
