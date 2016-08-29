@@ -221,7 +221,6 @@ int main ()
   while(1){
 
     // TTY and console handling:
-    // TODO, interruptenable
     char input;
     char nchar = read(0, &input, 1);
     if( nchar || in_console || tty_read_from_file ){
@@ -837,6 +836,8 @@ void print_instruction(short pc)
           if( cur & IAC ){
               printf(" IAC");
           }
+
+          // TODO CMA & IAC is called CIA in some assemblers, support?
 
           if( cur & RAR ){
               if( cur & BSW ){
