@@ -981,7 +981,7 @@ char console()
 	done = 1;
       }
       
-      if( ! strncasecmp(skip_line, "show\0", 2) ){
+      if( ! strncasecmp(skip_line, "show\0", 4) ){
         print_regs();
         printf("\n");
       }
