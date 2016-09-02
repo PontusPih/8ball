@@ -85,9 +85,8 @@ short ac = 0;
 short mq;
 short sr = 07777;
 short ion = 0; // Interrupt enable flipflop
-short ion_deferred = 0; //ion will be set in this many instructions
-short rtf_deferred = 0; //ion will be set in this many instructions
-short rtf_ion;
+short ion_delay = 0; //ion will be set after next fetch
+short rtf_delay = 0; //ion will be set after next fetch
 short intr = 0; // Interrupt requested flag
 // TODO add F D E state bits
 
@@ -262,7 +261,6 @@ int main ()
         cur = JMS;
         addr = 0;
         ion = 0;
-        intr = 0;
     } else {
         // Don't increment PC in case of an interrupt. An interrupt
         // actually occurs at the end of an execution cycle, before
@@ -270,19 +268,19 @@ int main ()
         pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
     }
 
-    if( ion_deferred ){
+    if( ion_delay ){
         // BUG? TODO What if an interrupt occurs between two ION instructions?
         // ION is not set until the following instruction has been
         // fetched.
         ion = 1;
-        ion_deferred=0;
+        ion_delay=0;
     }
 
-    if( rtf_deferred ){
+    if( rtf_delay ){
         // RTF has been executed and ION is not restored until the
         // following instruction has been fetched.
-        ion = 1; // rtf_ion; Apparently RTF always sets ION.
-        rtf_deferred=0;
+        ion = 1; // RTF always sets ION.
+        rtf_delay=0;
     }
 
     switch( cur & IF_MASK ){
@@ -327,7 +325,7 @@ int main ()
             }
           break;
         case ION:
-            ion_deferred = 1;
+            ion_delay = 1;
           break;
         case IOF:
             ion = 0;
@@ -343,9 +341,8 @@ int main ()
                  (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
           break;
         case RTF:
-            rtf_deferred = 1;
-            // Apparently RTF allways sets ION irregardles of the ION bit in AC.
-            // rtf_ion = (ac >> 7) & 1;
+            rtf_delay = 1;
+            // RTF allways sets ION irregardles of the ION bit in AC.
             ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
             pc = ((ac << 9) & FIELD_MASK) | (pc & (PAGE_MASK | WORD_MASK)); //restore IF
             df = ac & DF_MASK;
