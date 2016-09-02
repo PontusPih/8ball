@@ -6,6 +6,8 @@
 #include <signal.h>
 #include "linenoise.h"
 
+#define LINENOISE_MAX_LINE 4096
+
 #define MEMSIZE 0100000
 #define FIELD_MASK 070000
 #define DF_MASK 00003
@@ -144,6 +146,8 @@ struct termios told, tnew;
 void completion_cb(const char *buf, linenoiseCompletions *lc);
 char console();
 void print_regs();
+int save_state(char *filename);
+int restore_state(char *filename);
 
 short direct_addr(short pc)
 {
@@ -1052,11 +1056,40 @@ char console()
                 printf("TTY input from keyboard\n");
             }
         }
-        
       }
-      
+        
+      if( ! strncasecmp(skip_line, "save=", 5) ){
+          skip_line += 5;
+          if(strnlen(skip_line, LINENOISE_MAX_LINE-5) > 0){
+              int do_save=0;
+              if(access(skip_line,F_OK) != -1){
+                  printf("File exists, are you sure? [Y/N]\n");
+                  char input;
+                  while(read(0, &input, 1)==0){};
+                  printf("%c\n",input);
+                  if(input == 'Y' || input == 'y'){
+                      do_save=1;
+                  }
+              } else {
+                  do_save=1;
+              }
+              if(do_save && save_state(skip_line)){
+                  printf("CPU state saved\n");
+              }
+          }
+      }
+
+      if( ! strncasecmp(skip_line, "restore=", 8) ){
+          skip_line += 8;
+          if(strnlen(skip_line, LINENOISE_MAX_LINE-5) > 0){
+              if( ! restore_state(skip_line) ) {
+                  printf("Unable to restore state, state unchanged\n");
+              }
+          }
+      }
+
       if( ! strncasecmp(skip_line, "exit", 4) ){
-          // TODO dump memory to prev.core
+          save_state("prev.core");
 	tcsetattr(0, TCSANOW, &told);
 	exit(0);
       }
@@ -1066,4 +1099,130 @@ char console()
   }
   
   return in_console;
+}
+
+
+int save_state(char *filename)
+{
+    FILE *core = fopen(filename, "w+");
+
+    if( NULL == core ){
+        perror("Unable to open state file");
+        return 0;
+    }
+
+    fprintf(core, "8BALL MEM DUMP VERSION=1\n");
+    fprintf(core, "CPU STATE:\n");
+    fprintf(core, "PC = %.5o AC = %.4o MQ = %.4o DF = %.2o SR = %.4o\n",
+            pc, ac, mq, df, sr);
+    fprintf(core, "ION = %.2o ION_DELAY = %.2o RTF_DELAY = %.2o INTR = %.2o\n",
+            ion, ion_delay, rtf_delay, intr);
+
+    fprintf(core, "MEMORY:\n");
+    int i = 0;
+    for(int f=0;f < 8;f++){
+        fprintf(core, "FIELD %.2o\n", f);
+        for(int p=0;p < 32;p++){
+            fprintf(core, "PAGE %.3o\n",p);
+            for(int row=0;row <8;row++){
+                for(int col=0;col<16;col++){
+                    fprintf(core,"%.4o ",mem[i++]);
+                }
+                fprintf(core, "\n");
+            }
+        }
+    }
+    if(i != MEMSIZE){
+        printf("+++ INTERNAL ERROR MEM OUT OF CHEEZE +++");
+        return 0;
+    }
+
+    return 1;
+}
+
+
+int restore_state(char *filename)
+{
+    FILE *core = fopen(filename, "r");
+
+    if( NULL == core ){
+        perror("Unable to open state file");
+        return 0;
+    }
+
+    int version=-1;
+    int res=-1;
+    res = fscanf(core, "8BALL MEM DUMP VERSION=%d\n", &version);
+    if( ! ( 1 == res && version == 1 ) ){
+        printf("Unable to parse version string");
+        return 0;
+    }
+
+    int length = 0;
+    res = fscanf(core, "CPU STATE:\n%n", &length);
+    if( length != strlen("CPU STATE:\n") ){
+        printf("Unable to find CPU STATE\n");
+        return 0;
+    }
+
+    unsigned int rpc, rac, rmq, rdf, rsr;
+    res = fscanf(core, "PC = %o AC = %o MQ = %o DF = %o SR = %o\n",
+                 &rpc, &rac, &rmq, &rdf, &rsr);
+    if( ! (5 == res) ){
+        printf("Unable to parse register set 1\n");
+        return 0;
+    }
+
+    unsigned int rion, rion_delay, rrtf_delay, rintr;
+    res = fscanf(core, "ION = %o ION_DELAY = %o RTF_DELAY = %o INTR = %o\n",
+                 &rion, &rion_delay, &rrtf_delay, &rintr);
+    if( ! (4 == res) ){
+        printf("Unable to parse register set 2\n");
+        return 0;
+    }
+
+    res = fscanf(core, "MEMORY:\n%n", &length);
+    if( length != strlen("MEMORY:\n") ){
+        printf("Unable to find MEMORY\n");
+        return 0;
+    }
+
+    int i = 0, field_no, page_no;
+    unsigned short rmem[MEMSIZE];
+    for(int f=0;f < 8;f++){
+        res = fscanf(core, "FIELD %o\n", &field_no);
+        if( !( 1 == res && field_no == f ) ){
+            printf("Unable fo find FIELD %.2o\n",f);
+            return 0;
+        }
+        for(int p=0;p < 32;p++){
+            fprintf(core, "PAGE %.3o\n",p);
+            res = fscanf(core, "PAGE %o\n", &page_no);
+            if( !( 1 == res && page_no == p ) ){
+                printf("Unable to find PAGE %.3o\n",p);
+                return 0;
+            }
+            for(int row=0;row <8;row++){
+                for(int col=0;col<16;col++){
+                    fscanf(core,"%ho ",&rmem[i++]);
+                }
+            }
+        }
+    }
+    if(i != MEMSIZE){
+        printf("Unable to find all memory\n");
+        return 0;
+    }
+
+    memcpy(mem, rmem, sizeof(mem));
+    pc = rpc;
+    ac = rac;
+    mq = rmq;
+    df = rdf;
+    sr = rsr;
+    ion = rion;
+    ion_delay = rion_delay;
+    rtf_delay = rrtf_delay;
+    intr = rintr;
+    return 1;
 }
