@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <getopt.h>
 #include "linenoise.h"
 
 #define LINENOISE_MAX_LINE 4096
@@ -148,6 +149,11 @@ char console();
 void print_regs();
 int save_state(char *filename);
 int restore_state(char *filename);
+void exit_cleanup();
+void parse_options(int argc, char **argv);
+
+// flags set by options:
+char exit_on_HLT = 0; // A HLT will exit the proccess with EXIT_FAILURE
 
 short direct_addr(short pc)
 {
@@ -189,13 +195,18 @@ short operand_addr(short pc, char examine)
   return addr;
 }
 
-int main ()
+int main (int argc, char **argv)
 {
     //#include "hello_world.h"
     //    pc = 0200;
 
 #include "rimloader.h"
     pc = 07756;
+
+  parse_options(argc, argv);
+
+  atexit(exit_cleanup); // register after parse_option so prev.core
+                         // is not overwritten with blank state.
 
   // Setup console
   /* Set the completion callback. This will be called every time the
@@ -218,7 +229,7 @@ int main ()
   // Setup signal handler.
   if( signal(SIGINT, signal_handler) ){
       printf("Unable to setup signal handler\n");
-      exit(1);
+      exit(EXIT_FAILURE);
   }
 
   while(1){
@@ -600,6 +611,9 @@ int main ()
 	    ac |= sr;
 	  }
 	  if( cur & HLT ){
+            if( exit_on_HLT ){
+              exit(EXIT_FAILURE);
+            }
 	    in_console = 1;
             printf(">>> CPU HALTED <<<\n");
             print_regs();
@@ -1089,9 +1103,7 @@ char console()
       }
 
       if( ! strncasecmp(skip_line, "exit", 4) ){
-          save_state("prev.core");
-	tcsetattr(0, TCSANOW, &told);
-	exit(0);
+	exit(EXIT_SUCCESS);
       }
       
     } 
@@ -1099,6 +1111,13 @@ char console()
   }
   
   return in_console;
+}
+
+
+void exit_cleanup()
+{
+    save_state("prev.core");
+    tcsetattr(0, TCSANOW, &told);
 }
 
 
@@ -1225,4 +1244,44 @@ int restore_state(char *filename)
     rtf_delay = rrtf_delay;
     intr = rintr;
     return 1;
+}
+
+
+void parse_options(int argc, char **argv)
+{
+    // TODO add --iterations
+    while (1) {
+        int c;
+        int option_index;
+
+        static struct option long_options[] = {
+            {"restore",     required_argument, 0, 'r' },
+            {"exit_on_HLT", no_argument,       0, 'e' },
+            {0,             0,                 0, 0 }
+        };
+
+        c = getopt_long(argc, argv, "",long_options, &option_index);
+
+        if ( c == -1 ){
+            break;
+        }
+
+        switch (c) {
+        case 'r':
+            restore_state(optarg);
+            break;
+
+        case 'e':
+            exit_on_HLT = 1;
+            break;
+
+        case '?':
+            exit(EXIT_FAILURE);
+            break;
+
+        default:
+            printf("?? getopt returned character code 0%o ??\n", c);
+            break;
+        }
+    }
 }
