@@ -1,4 +1,4 @@
-8ball: 8ball.c linenoise.c linenoise.h binloader.h
+8ball: 8ball.c linenoise.c linenoise.h rimloader.h
 	$(CC) -Wall -W -g -o 8ball 8ball.c linenoise.c
 
 clean:
