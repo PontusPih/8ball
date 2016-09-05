@@ -197,9 +197,6 @@ short operand_addr(short pc, char examine)
 
 int main (int argc, char **argv)
 {
-    //#include "hello_world.h"
-    //    pc = 0200;
-
 #include "rimloader.h"
     pc = 07756;
 
@@ -217,13 +214,13 @@ int main (int argc, char **argv)
    * where entries are separated by newlines. */
   /* linenoiseHistoryLoad("history.txt"); / * Load the history at startup */
   
-  // Setup terminal for canonical mode:
+  // Setup terminal for noncanonical mode:
   
   tcgetattr(0,&told);
   tnew = told;
   tnew.c_lflag &= ~(ICANON|ECHO);
   tnew.c_cc[VMIN] = 0; // Allow read() to return without data.
-  tnew.c_cc[VTIME] = 0; // But block for one tenth of a second.
+  tnew.c_cc[VTIME] = 0; // And block for 0 tenths of a second.
   tcsetattr(0, TCSANOW, &tnew);
 
   // Setup signal handler.
@@ -236,7 +233,7 @@ int main (int argc, char **argv)
 
     // TTY and console handling:
     char input;
-    char nchar = read(0, &input, 1);
+    char nchar = read(0, &input, 1); // TODO only read() if tty_kb_flag==0
     if( nchar || in_console || tty_read_from_file ){
         if( input == 033 || in_console ){
             in_console = console();
