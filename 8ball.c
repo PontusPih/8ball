@@ -154,6 +154,9 @@ void parse_options(int argc, char **argv);
 
 // flags set by options:
 char exit_on_HLT = 0; // A HLT will exit the proccess with EXIT_FAILURE
+char stop_after = 0; // When iterations_to_exit reaches 0, exit if run_to_stop
+int stop_at = -1;
+int iterations_to_exit = 0;
 
 short direct_addr(short pc)
 {
@@ -262,6 +265,20 @@ int main (int argc, char **argv)
                 }
             }
         }
+    }
+
+    if( stop_after && (iterations_to_exit-- == 0) ){
+        printf("\n >>> STOP AFTER <<<\n");
+        print_regs();
+        printf("\n");
+        exit(EXIT_SUCCESS);
+    }
+
+    if( stop_at > 0 && pc == stop_at ){
+        printf("\n >>> STOP AT <<<\n");
+        print_regs();
+        printf("\n");
+        exit(EXIT_SUCCESS);
     }
 
     // TODO, proper DF-handling
@@ -608,13 +625,13 @@ int main (int argc, char **argv)
 	    ac |= sr;
 	  }
 	  if( cur & HLT ){
-            if( exit_on_HLT ){
-              exit(EXIT_FAILURE);
-            }
 	    in_console = 1;
-            printf(">>> CPU HALTED <<<\n");
+            printf(" >>> CPU HALTED <<<\n");
             print_regs();
             printf("\n");
+            if( exit_on_HLT ){
+                exit(EXIT_FAILURE);
+            }
 	  }
 	} else {
 	  // Group Three
@@ -1246,7 +1263,6 @@ int restore_state(char *filename)
 
 void parse_options(int argc, char **argv)
 {
-    // TODO add --iterations
     while (1) {
         int c;
         int option_index;
@@ -1254,6 +1270,10 @@ void parse_options(int argc, char **argv)
         static struct option long_options[] = {
             {"restore",     required_argument, 0, 'r' },
             {"exit_on_HLT", no_argument,       0, 'e' },
+            {"stop_after",  required_argument, 0, 's' },
+            {"stop_at",     required_argument, 0, 't' },
+            {"pc",          required_argument, 0, 'p' },
+            {"run",         no_argument,       0, 'n' },
             {0,             0,                 0, 0 }
         };
 
@@ -1265,11 +1285,30 @@ void parse_options(int argc, char **argv)
 
         switch (c) {
         case 'r':
-            restore_state(optarg);
+            if( ! restore_state(optarg) ){
+                exit(EXIT_FAILURE);
+            }
             break;
 
         case 'e':
             exit_on_HLT = 1;
+            break;
+
+        case 's':
+            stop_after = 1;
+            iterations_to_exit = atoi(optarg); // TODO strtol
+            break;
+
+        case 't':
+            stop_at = atoi(optarg);
+            break;
+
+        case 'p':
+            pc = atoi(optarg); // TODO octal format
+            break;
+
+        case 'n':
+            in_console = 0;
             break;
 
         case '?':

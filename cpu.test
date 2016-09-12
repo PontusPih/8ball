@@ -1,0 +1,28 @@
+# CPU Test round 1
+./8ball --restore maindec-8e-d0ab-pb.core --exit_on_HLT --run --stop_at 2764
+>>>
+
+ >>> STOP AT <<<
+PC = 5314 AC = 207 MQ = 0 DF = 0 SR = 7777 ION = 0
+>>>= 0
+# CPU Test round 2
+./8ball --restore maindec-8e-d0bb-pb.core --exit_on_HLT --run --stop_at 2021
+>>>
+
+ >>> STOP AT <<<
+PC = 3745 AC = 10207 MQ = 0 DF = 0 SR = 7777 ION = 0
+>>>= 0
+# RANDOM ADD TEST. Location 0170 set to 7776 and SR=0400
+#
+# Failes becaus actual output starts with 0d 0a, this file has just 0a
+#
+./8ball --restore maindec-8e-d0cc-pb.core --run --stop_at 2404
+>>>
+
+SIMAD
+SIMROT
+FCT
+RANDOM
+ >>> STOP AT <<<
+PC = 4544 AC = 0 MQ = 40 DF = 0 SR = 400 ION = 0
+>>>= 0
