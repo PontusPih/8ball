@@ -1,20 +1,10 @@
 8ball
+MAINDEC*
+*.pdf
+*.core
 
-d8tape/:
-d8tape
-d8tape.h
-dasm.c
-flow.c
-iot.h
-LICENSE
-main.c
-Makefile
-version.c
+krten_diags/
 
-palbart/:
-makefile
-old
-palbart
-palbart.1
-palbart.c
-README
+d8tape/
+
+palbart/
