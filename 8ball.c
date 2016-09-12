@@ -1170,6 +1170,10 @@ int save_state(char *filename)
         return 0;
     }
 
+    if( fclose(core) ){
+        perror("Unable to close state file");
+        return 0;
+    }
     return 1;
 }
 
