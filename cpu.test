@@ -1,3 +1,9 @@
+##
+#  WARNING! Edit this file with an editor sensitive to CR+LF line
+#  endings!  The maindec tests emits CR+LF instead of just LF as some
+#  editors will assume.
+##
+
 # CPU Test round 1
 ./8ball --restore maindec-8e-d0ab-pb.core --exit_on_HLT --run --stop_at 2764
 >>>
@@ -5,6 +11,7 @@
  >>> STOP AT <<<
 PC = 5314 AC = 207 MQ = 0 DF = 0 SR = 7777 ION = 0
 >>>= 0
+
 # CPU Test round 2
 ./8ball --restore maindec-8e-d0bb-pb.core --exit_on_HLT --run --stop_at 2021
 >>>
@@ -12,11 +19,9 @@ PC = 5314 AC = 207 MQ = 0 DF = 0 SR = 7777 ION = 0
  >>> STOP AT <<<
 PC = 3745 AC = 10207 MQ = 0 DF = 0 SR = 7777 ION = 0
 >>>= 0
+
 # RANDOM ADD TEST. Location 0170 set to 7776 and SR=0400
-#
-# Failes becaus actual output starts with 0d 0a, this file has just 0a
-#
-./8ball --restore maindec-8e-d0cc-pb.core --run --stop_at 2404
+./8ball --restore maindec-8e-d0cc-pb.core --exit_on_HLT --run --stop_at 2404
 >>>
 
 SIMAD
@@ -26,3 +31,49 @@ RANDOM
  >>> STOP AT <<<
 PC = 4544 AC = 0 MQ = 40 DF = 0 SR = 400 ION = 0
 >>>= 0
+
+# RANDOM AND TEST. This test runs one pass, relocates and halts.
+./8ball --restore maindec-8e-d0db-pb.core --exit_on_HLT --run
+>>>
+
+A >>> CPU HALTED <<<
+PC = 355 AC = 0 MQ = 5777 DF = 0 SR = 2000 ION = 0
+>>>= 1
+
+# The previous test, if it works, will output a prev.core with the
+# previous test relocated, lets run it again:
+
+./8ball --restore prev.core --exit_on_HLT --run
+>>>
+
+A >>> CPU HALTED <<<
+PC = 6755 AC = 10000 MQ = 5777 DF = 0 SR = 2000 ION = 0
+>>>= 1
+
+# The previous test, if it works, will output a prev.core with the
+# previous test relocated, lets run it a last time:
+
+./8ball --restore prev.core --exit_on_HLT --run
+>>>
+
+A >>> CPU HALTED <<<
+PC = 355 AC = 0 MQ = 5777 DF = 0 SR = 2000 ION = 0
+>>>= 1
+
+# RANDOM TAD TEST
+./8ball --restore=maindec-8e-d0eb-pb.core --run --stop_at=3888
+>>>
+
+T
+ >>> STOP AT <<<
+PC = 7460 AC = 0 MQ = 0 DF = 0 SR = 0 ION = 0
+>>>=0
+
+# RANDOM ISZ TEST
+./8ball --restore=maindec-8e-d0fc-pb.core --run --stop_at=3985
+>>>
+
+FC
+ >>> STOP AT <<<
+PC = 7621 AC = 10000 MQ = 0 DF = 0 SR = 0 ION = 0
+>>>=0

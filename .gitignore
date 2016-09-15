@@ -1,7 +1,7 @@
 8ball
 MAINDEC*
 *.pdf
-*.core
+prev.core
 
 krten_diags/
 
