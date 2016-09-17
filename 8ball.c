@@ -284,6 +284,7 @@ int main (int argc, char **argv)
     // TODO, proper DF-handling
     short cur = *(mem+pc); // Much like MB register
     short addr = operand_addr(pc, 0); // Much like CPMA register
+    // TODO breakpoints and watch using leftover bits
 
     if( ion && intr ){
         // An interrupt occured, disable interrupts, force JMS to 0000
