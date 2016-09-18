@@ -83,6 +83,8 @@ short mem[MEMSIZE];
 
 // CPU registers
 short pc = 0200;
+short ib = 0; // Instruction buffer
+short intr_b = 0; // Interrupt buffer
 short df = 0;
 short ac = 0;
 short mq;
@@ -91,6 +93,7 @@ short ion = 0; // Interrupt enable flipflop
 short ion_delay = 0; //ion will be set after next fetch
 short rtf_delay = 0; //ion will be set after next fetch
 short intr = 0; // Interrupt requested flag
+short intr_inhibit = 0; // MMU inhibit flag
 // TODO add F D E state bits
 
 // TTY registers
@@ -129,6 +132,15 @@ FILE *tty_fh = NULL;
 #define TPC 4
 #define TSK 5
 #define TLS 6
+
+// KM8E OP-codes:
+#define CDF 01
+#define CIF 02
+#define CDI 03
+#define RDF 010
+#define RIF 020
+#define RIB 030
+#define RMF 040
 
 char in_console = 1;
 
@@ -286,11 +298,22 @@ int main (int argc, char **argv)
     short addr = operand_addr(pc, 0); // Much like CPMA register
     // TODO breakpoints and watch using leftover bits
 
-    if( ion && intr ){
+    if( (cur & IF_MASK) < JMP ){
+      // For AND, TAD, ISZ and DCA the field is set by DF.
+      // For JMP and JMS it is already set by IF.
+      // For IOT and OPR it doesn't matter.
+      addr = (addr & B12_MASK) | (df << 12);
+    }
+
+    if( ion && intr && (! intr_inhibit) ){
       // An interrupt occured, disable interrupts, force JMS to 0000
       cur = JMS;
       addr = 0;
       ion = 0;
+      // Save KM8E registers
+      // TODO save U when implemented
+      intr_b = (pc & FIELD_MASK) >> 9 | df;
+      // df = 0; // FIRST BUG ? 0357. Should df be cleared here?
     } else {
       // Don't increment PC in case of an interrupt. An interrupt
       // actually occurs at the end of an execution cycle, before
@@ -336,11 +359,21 @@ int main (int argc, char **argv)
       ac = (ac & LINK_MASK);
       break;
     case JMS:
+      if( intr_inhibit ){
+        // restore IF
+        pc = (ib << 12) | (pc & B12_MASK);
+        intr_inhibit = 0;
+      }
       // Jump and store return address.
       mem[addr] = (pc & B12_MASK);
       pc = (pc & FIELD_MASK) | ((addr + 1) & B12_MASK);
       break;
     case JMP:
+      if( intr_inhibit ){
+        // restore IF
+        addr = (ib << 12) | (addr & B12_MASK);
+        intr_inhibit = 0;
+      }
       // Unconditional Jump
       pc = addr;
       break;
@@ -476,7 +509,49 @@ int main (int argc, char **argv)
       case 025:
       case 026:
       case 027:
-        // printf("IOT unsupported memory management instruction: NOP\n");
+        switch( cur & IOT_OP_MASK ){
+        case CDF:
+        case CIF:
+        case CDI:
+          {
+            short field = (cur & MMU_DI_MASK) >> 3;
+            short iot = cur & IOT_OP_MASK;
+            if( iot & CDF ){
+              df = field;
+            }
+
+            if( IOT & CIF ){
+              ib = field;
+              intr_inhibit = 1;
+            }
+          }
+          break;
+        case 04: // READ instruction group
+          switch( cur & MMU_DI_MASK ){
+          case RDF:
+            ac |= (df << 3);
+            break;
+          case RIF:
+            ac |= (pc & FIELD_MASK) >> 9;
+            break;
+          case RIB:
+            ac |= intr_b;
+            break;
+          case RMF:
+            // TODO restore U when implemented
+            ib = (intr_b & 070) >> 3;
+            df = (intr_b & 07);
+            intr_inhibit = 1;
+            break;
+          default:
+            printf("IOT unsupported memory management instruction(04): NOP\n");
+            break;
+          }
+          break;
+        default:
+          printf("IOT unsupported memory management instruction: NOP\n");
+          break;
+        }
         break;
       default:
         printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
@@ -982,6 +1057,16 @@ short read_12bit_octal(const char *buf)
   return (short)(res & B12_MASK);
 }
 
+short read_15bit_octal(const char *buf)
+{
+  unsigned int res;
+  sscanf(buf, "%o", &res);
+  if( res > 077777 ){
+    printf("Octal value to large, truncated: %.6o\n", res & 077777);
+  }
+  return (short)(res & 077777);
+}
+
 char console()
 {
   char *line;
@@ -1029,12 +1114,12 @@ char console()
 
       if( ! strncasecmp(skip_line, "e ", 2) ){
         skip_line += 2;
-        int start = read_12bit_octal(skip_line);
+        int start = read_15bit_octal(skip_line);
         while( *skip_line != ' ' ){
           skip_line++;
         }
 
-        int end = read_12bit_octal(skip_line);
+        int end = read_15bit_octal(skip_line);
 
         while( start <= end ){
           print_instruction(start);
