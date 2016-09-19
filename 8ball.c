@@ -79,8 +79,11 @@
 #define SGT 06
 #define CAF 07
 
+// TODO initialize memory properly!
 short mem[MEMSIZE];
 
+// TODO implement "clear" command that initializes these variables,
+// just like the clear switch on a real front panel.
 // CPU registers
 short pc = 0200;
 short ib = 0; // Instruction buffer

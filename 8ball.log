@@ -64,3 +64,51 @@ the TTY (it's 7 bit, not 8).
 
 Surprisingly my DCA implementation cleared the LINC bit, which it
 shouldn't, but no test caught it thus far.
+
+Update: 19-SEP-2016
+
+After passing the first MAINDECs I figured I should make an automatic
+test suite so that I could quickly run all MAINDECs again. Adding some
+sort of scripting language to the emulator to control loading and
+running of papertapes felt like a big job at this point. Instead I
+implemented a way of saving and restoring emulator state, something I
+wanted anyway to emulate core memory. This way I can load a MAINDEC,
+set up the PC and switch register (SR) and then save the state to a
+file from which the emulator could be resumed. I added command line
+parsing so that a state file could be specified at start. Most
+MAINDECs executes a HLT instruction on failure and prints a control
+character (BEL, an audible *ding* on a real TTY) on a successful test
+round. Noticing this pattern I added one option to exit the emulator
+on a HLT instruction and another option to exit when the PC reached a
+given address. A test script can then differentiate between a failed
+and successful test.
+
+I added the MAINDECs I had already run to a test script and
+reintroduced a few bugs to test the tests. It worked nicely and I
+added more instruction test MAINDECs to the suite. Quite booring and
+tedious since all of them worked :-).
+
+I have more instruction tests to add, but I took a break from it and
+started implementing KM8E support. It is the memory management and
+time sharing option that allows for up to 32kW of memory and multiple
+user processes. So far I have basic support for memory management but
+have not passed all tests yet.
+
+I think that I have begun to reach the end of what Dougs excellent
+programmers manual can give. The KM8E description is lacking in some
+details, but I've found that reading DEC manuals is now a lot easier
+thanks to the soft introduction given by Doug. I will still have use
+of his manual if I decide to implement support for the high speed
+paper tape reader and punch. As well as the VC8E point plot display of
+which there is very little information to be find in other places.
+
+A side note, I've looked for information regarding the VC8E in other
+places but only found what is written about it in the Small Computer
+Handbook from 1973 [2]. That description is quite superficial and
+strikingly similar to Dougs description. I later read the source code
+to the point plot display in simh, written by Phil Budne [3], and it
+refers to Dougs PDP-8 emulator. I didn't realize that Doug had written
+an emulator, but he has and it's available on his homepage [4]. In
+_that_ code Doug seems to lament that there is little information the
+VC8E availble other than what is in the hanbook, which explains the
+similarities in technical detail.
