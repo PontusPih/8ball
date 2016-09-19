@@ -313,7 +313,8 @@ int main (int argc, char **argv)
       // Save KM8E registers
       // TODO save U when implemented
       intr_b = (pc & FIELD_MASK) >> 9 | df;
-      // df = 0; // FIRST BUG ? 0357. Should df be cleared here?
+      pc = pc & B12_MASK;
+      df = 0;
     } else {
       // Don't increment PC in case of an interrupt. An interrupt
       // actually occurs at the end of an execution cycle, before
@@ -520,7 +521,7 @@ int main (int argc, char **argv)
               df = field;
             }
 
-            if( IOT & CIF ){
+            if( iot & CIF ){ // Found with 03
               ib = field;
               intr_inhibit = 1;
             }
