@@ -15,7 +15,8 @@ spent an equal amount of time, if not more, getting the terminal
 handling right and figuring out how to read paper tape images from
 file.
 
-The first test was a simple hello world program. <TODO date>
+The first test was a simple hello world program. Probably ran
+successfully for the first time arround July 19.
 
 But the first hurdle was really getting the RIM loader to work. I was
 eager to get the MAINDEC cpu diagnostics running so I figured I would
