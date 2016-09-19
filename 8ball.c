@@ -298,7 +298,7 @@ int main (int argc, char **argv)
     short addr = operand_addr(pc, 0); // Much like CPMA register
     // TODO breakpoints and watch using leftover bits
 
-    if( (cur & I_MASK) && (cur & IF_MASK) < JMP ){
+    if( (cur & I_MASK) && (cur & IF_MASK) < JMS ){
       // For indirect AND, TAD, ISZ and DCA the field is set by DF.
       // For JMP and JMS it is already set by IF.
       // For IOT and OPR it doesn't matter.
