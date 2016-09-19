@@ -362,7 +362,7 @@ int main (int argc, char **argv)
       if( intr_inhibit ){
         // restore IF
         pc = (ib << 12) | (pc & B12_MASK);
-        intr_inhibit = 0;
+        ib = intr_inhibit = 0;
       }
       // Jump and store return address.
       mem[addr] = (pc & B12_MASK);
@@ -372,7 +372,7 @@ int main (int argc, char **argv)
       if( intr_inhibit ){
         // restore IF
         addr = (ib << 12) | (addr & B12_MASK);
-        intr_inhibit = 0;
+        ib = intr_inhibit = 0;
       }
       // Unconditional Jump
       pc = addr;
@@ -746,7 +746,7 @@ void print_instruction(short pc)
   short cur = *(mem + pc);
   short addr = operand_addr(pc, 1);
 
-  printf("%.5o  %.5o", pc, cur);
+  printf("%.6o  %.6o", pc, cur);
 
   if( (cur & IF_MASK) <= JMP ){
     switch( cur & IF_MASK ){
@@ -772,15 +772,15 @@ void print_instruction(short pc)
     // TODO print value of memory cell referenced.
     if( ! (cur & Z_MASK) ) {
       if( cur & I_MASK ){
-        printf(" I Z %.4o (%.4o)", direct_addr(pc), addr);
+        printf(" I Z %.6o (%.6o)", direct_addr(pc), addr);
       } else {
-        printf(" Z %.4o", addr);
+        printf(" Z %.6o", addr);
       }
     } else {
       if( cur & I_MASK ){
-        printf(" I %.4o (%.4o)", direct_addr(pc), addr);
+        printf(" I %.6o (%.6o)", direct_addr(pc), addr);
       } else {
-        printf(" %.4o", addr);
+        printf(" %.6o", addr);
       }
     }
   } else {
@@ -1044,12 +1044,12 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 
 void print_regs()
 {
-  printf("PC = %o AC = %o MQ = %o DF = %o SR = %o ION = %o", pc, ac, mq, df, sr, ion);
+  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, sr, ion, intr_inhibit);
 }
 
 short read_12bit_octal(const char *buf)
 {
-  unsigned int res;
+  unsigned int res = 0;
   sscanf(buf, "%o", &res);
   if( res > B12_MASK ){
     printf("Octal value to large, truncated: %.5o\n", res & B12_MASK);
@@ -1059,7 +1059,7 @@ short read_12bit_octal(const char *buf)
 
 short read_15bit_octal(const char *buf)
 {
-  unsigned int res;
+  unsigned int res = 0;
   sscanf(buf, "%o", &res);
   if( res > 077777 ){
     printf("Octal value to large, truncated: %.6o\n", res & 077777);
@@ -1103,7 +1103,7 @@ char console()
       if( ! strncasecmp(skip_line, "d ", 2) ){
         // deposit
         skip_line += 2;
-        int addr = read_12bit_octal(skip_line);
+        int addr = read_15bit_octal(skip_line);
         while( *skip_line != ' ' ){
           skip_line++;
         }
@@ -1140,6 +1140,11 @@ char console()
         }
 
         if( ! strncasecmp(skip_line, "ac=", 3) ){
+          skip_line += 3;
+          ac = read_12bit_octal(skip_line);
+        }
+
+        if( ! strncasecmp(skip_line, "df=", 3) ){
           skip_line += 3;
           ac = read_12bit_octal(skip_line);
         }
