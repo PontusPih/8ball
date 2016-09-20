@@ -405,7 +405,7 @@ int main (int argc, char **argv)
         case GTF:
           // TODO add more fields as support is added. (GT, II, and U)
           ac = (ac & LINK_MASK) | // preserve LINK
-               (LINK << 11) | (intr << 9) | (ion << 7) | ((pc & FIELD_MASK) >> 9) | df;
+               (LINK << 11) | (intr << 9) | (ion << 7) | intr_b;
           break;
         case RTF:
           rtf_delay = 1;
@@ -808,7 +808,7 @@ void print_instruction(short pc)
         case GTF:
           // TODO add more fields as support is added. (GT, II, and U)
           printf(" GTF (LINK = %o INTR = %o ION = %o IF = %o DF = %o)",
-                 LINK, intr, ion, ((pc & FIELD_MASK) >> 9), df);
+                 LINK, intr, ion, ((intr_b & 070) >> 3), intr_b & 07);
           break;
         case RTF:
           // TODO restore more fields. (GT, II, and U);
