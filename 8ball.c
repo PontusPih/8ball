@@ -87,7 +87,7 @@ short mem[MEMSIZE];
 // CPU registers
 short pc = 0200;
 short ib = 0; // Instruction buffer
-short intr_b = 0; // Interrupt buffer
+short sf = 0; // save field
 short df = 0;
 short ac = 0;
 short mq;
@@ -315,7 +315,7 @@ int main (int argc, char **argv)
       ion = 0;
       // Save KM8E registers
       // TODO save U when implemented
-      intr_b = (pc & FIELD_MASK) >> 9 | df;
+      sf = (pc & FIELD_MASK) >> 9 | df;
       pc = pc & B12_MASK;
       df = 0;
     } else {
@@ -405,7 +405,7 @@ int main (int argc, char **argv)
         case GTF:
           // TODO add more fields as support is added. (GT, II, and U)
           ac = (ac & LINK_MASK) | // preserve LINK
-               (LINK << 11) | (intr << 9) | (ion << 7) | intr_b;
+               (LINK << 11) | (intr << 9) | (ion << 7) | sf;
           break;
         case RTF:
           rtf_delay = 1;
@@ -539,12 +539,12 @@ int main (int argc, char **argv)
             ac |= (pc & FIELD_MASK) >> 9;
             break;
           case RIB:
-            ac |= intr_b;
+            ac |= sf;
             break;
           case RMF:
             // TODO restore U when implemented
-            ib = (intr_b & 070) >> 3;
-            df = (intr_b & 07);
+            ib = (sf & 070) >> 3;
+            df = (sf & 07);
             intr_inhibit = 1;
             break;
           default:
@@ -808,7 +808,7 @@ void print_instruction(short pc)
         case GTF:
           // TODO add more fields as support is added. (GT, II, and U)
           printf(" GTF (LINK = %o INTR = %o ION = %o IF = %o DF = %o)",
-                 LINK, intr, ion, ((intr_b & 070) >> 3), intr_b & 07);
+                 LINK, intr, ion, ((sf & 070) >> 3), sf & 07);
           break;
         case RTF:
           // TODO restore more fields. (GT, II, and U);
