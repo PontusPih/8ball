@@ -214,6 +214,7 @@ short operand_addr(short pc, char examine)
 
 int main (int argc, char **argv)
 {
+  memset(mem, 0, sizeof(mem));
 #include "rimloader.h"
   pc = 07756;
 
@@ -526,7 +527,7 @@ int main (int argc, char **argv)
               df = field;
             }
 
-            if( iot & CIF ){ // Found with 03
+            if( iot & CIF ){
               ib = field;
               intr_inhibit = 1;
             }
@@ -550,7 +551,7 @@ int main (int argc, char **argv)
             intr_inhibit = 1;
             break;
           default:
-            printf("IOT unsupported memory management instruction(04): NOP\n");
+            //printf("IOT unsupported memory management instruction(04): NOP\n");
             break;
           }
           break;
@@ -952,7 +953,7 @@ void print_instruction(short pc)
 
         if( cur & RAR ){
           if( cur & BSW ){
-            printf(" BTR");
+            printf(" RTR");
           } else {
             printf(" RAR");
           }
