@@ -11,7 +11,6 @@
 
 #define MEMSIZE 0100000
 #define FIELD_MASK 070000
-#define DF_MASK 00003
 #define PAGE_MASK 07600
 #define WORD_MASK 0177
 #define B12_MASK 07777
@@ -208,7 +207,7 @@ short operand_addr(short pc, char examine)
       // autoindex addressing
       mem[addr] = (mem[addr]+1) & B12_MASK;
     }
-    addr = mem[addr];
+    addr = (addr & FIELD_MASK) | (mem[addr] & B12_MASK);
   }
   return addr;
 }
@@ -317,7 +316,7 @@ int main (int argc, char **argv)
       // TODO save U when implemented
       sf = (pc & FIELD_MASK) >> 9 | df;
       pc = pc & B12_MASK;
-      df = 0;
+      df = ib = 0;
     } else {
       // Don't increment PC in case of an interrupt. An interrupt
       // actually occurs at the end of an execution cycle, before
@@ -365,8 +364,10 @@ int main (int argc, char **argv)
     case JMS:
       if( intr_inhibit ){
         // restore IF
+        // TODO restore U bit when implemented.
         pc = (ib << 12) | (pc & B12_MASK);
-        ib = intr_inhibit = 0;
+        addr = (ib << 12) | (addr & B12_MASK);
+        intr_inhibit = 0;
       }
       // Jump and store return address.
       mem[addr] = (pc & B12_MASK);
@@ -376,7 +377,7 @@ int main (int argc, char **argv)
       if( intr_inhibit ){
         // restore IF
         addr = (ib << 12) | (addr & B12_MASK);
-        ib = intr_inhibit = 0;
+        intr_inhibit = 0;
       }
       // Unconditional Jump
       pc = addr;
@@ -403,17 +404,18 @@ int main (int argc, char **argv)
           }
           break;
         case GTF:
-          // TODO add more fields as support is added. (GT, II, and U)
+          // TODO add more fields as support is added. (GT and U)
           ac = (ac & LINK_MASK) | // preserve LINK
                (LINK << 11) | (intr << 9) | (ion << 7) | sf;
           break;
         case RTF:
-          rtf_delay = 1;
           // RTF allways sets ION irregardles of the ION bit in AC.
+          ion = 1;
+          intr_inhibit = 1;
           ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
-          pc = ((ac << 9) & FIELD_MASK) | (pc & (PAGE_MASK | WORD_MASK)); //restore IF
-          df = ac & DF_MASK;
-          // TODO restore more fields. (GT, II, and U);
+          ib = (ac & 070) >> 3; // test 05 & test 08
+          df = ac & 07;
+          // TODO restore more fields. (GT, and U);
           break;
         case SGT:
           // TODO add with EAE support
@@ -812,8 +814,8 @@ void print_instruction(short pc)
           break;
         case RTF:
           // TODO restore more fields. (GT, II, and U);
-          printf(" RTF (LINK = %o ION = %o IF = %o DF = %o)",
-                 (ac >> 11) & 1, (ac >> 7) & 1, (ac >> 3) & 0b111, ac & DF_MASK);
+          printf(" RTF (LINK = %o INHIB = %o ION = %o IF = %o DF = %o)",
+                 (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 3) & 07, ac & 07);
           break;
         case SGT:
           // TODO add with EAE support
@@ -1048,7 +1050,7 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 
 void print_regs()
 {
-  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, sr, ion, intr_inhibit);
+  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o SF = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, sf, sr, ion, intr_inhibit);
 }
 
 short read_12bit_octal(const char *buf)

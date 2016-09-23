@@ -113,3 +113,33 @@ an emulator, but he has and it's available on his homepage [4]. In
 _that_ code Doug seems to lament that there is little information the
 VC8E availble other than what is in the hanbook, which explains the
 similarities in technical detail.
+
+Update 23-SEP-2016
+
+Yesterday I got the emulation of the memory extension part of the KM8E
+down and the emulator passes that part of the tests. It's clear that
+Dougs manual is downright wrong when it comes to GTF and RTF. However,
+the manuals and handbooks aren't that good either. The 1976 PDP8/a
+Minicomputer Handbook is even wrong on page 6-36, it misses some bits
+that are restored to AC when executing RTF. 1973 is slightly better on
+page 5-14.
+
+I finaly got it figured out by reading the 1976 hanbook, the 1973
+Small computer handbook, the KM8E option manual, talking with BQT and
+finally checking the SIMH code. Reading SIMH code is something I
+wanted to avoid for the learning experience so it was a bit of a
+defeat.
+
+So, for posterity:
+
+GTF will save the LINK bit in AC bit 0, the interrupt request flag in
+AC bit 2, ION flag in AC bit 4 and the whole SF register in AC bit
+5-11.
+
+RTF will immediately set ION and INHIB, no delay. It restores the LINK
+bit from AC bit 0, the IB from AC bit 6-8 and DF from AC bit 9-11. The
+following JMP or JMS will restore IF exactly the same way as after a
+CIF.
+
+Oh yes, the EAE bit GT and KM8E U bit is also saved and restored, but
+I haven't implemented and tested that yet :)
