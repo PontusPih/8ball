@@ -78,24 +78,24 @@
 #define SGT 06
 #define CAF 07
 
-// TODO initialize memory properly!
 short mem[MEMSIZE];
 
 // TODO implement "clear" command that initializes these variables,
 // just like the clear switch on a real front panel.
 // CPU registers
-short pc = 0200;
-short ib = 0; // Instruction buffer
-short sf = 0; // save field
-short df = 0;
-short ac = 0;
-short mq;
-short sr = 07777;
+short pc = 0200; // Program Counter (and Instruction Field, if)
+short ac = 0; // Acumulator
+short mq = 0; // Multiplier Quotient
+short sr = 07777; // Switch Registers, 1 is switch up
 short ion = 0; // Interrupt enable flipflop
 short ion_delay = 0; //ion will be set after next fetch
+short intr = 0; // Interrupt requested flags
+// Memory extension registers
+short ib = 0; // Instruction buffer
+short sf = 0; // save field
+short df = 0; // data field
+short intr_inhibit = 0; // interrupt inhibit flag
 short rtf_delay = 0; //ion will be set after next fetch
-short intr = 0; // Interrupt requested flag
-short intr_inhibit = 0; // MMU inhibit flag
 // TODO add F D E state bits
 
 // TTY registers
