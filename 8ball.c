@@ -144,6 +144,9 @@ FILE *tty_fh = NULL;
 #define RIB 030
 #define RMF 040
 
+#define INTR(x) (1 << (x))
+#define TTY_INTR_FLAG INTR(0)
+
 char in_console = 1;
 
 void signal_handler(int signo)
@@ -276,7 +279,7 @@ int main (int argc, char **argv)
           tty_kb_buf = input;
           tty_kb_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
-            intr = 1;
+            intr |= TTY_INTR_FLAG;
           }
         }
       }
@@ -407,7 +410,7 @@ int main (int argc, char **argv)
         case GTF:
           // TODO add more fields as support is added. (GT and U)
           ac = (ac & LINK_MASK) | // preserve LINK
-               (LINK << 11) | (intr << 9) | (ion << 7) | sf;
+               (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | sf;
           break;
         case RTF:
           // RTF allways sets ION irregardles of the ION bit in AC.
@@ -466,7 +469,7 @@ int main (int argc, char **argv)
         case TFL:
           tty_tp_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
-            intr = 1;
+            intr |= TTY_INTR_FLAG;
           }
           break;
         case TSF:
@@ -476,7 +479,7 @@ int main (int argc, char **argv)
           break;
         case TCF:
           tty_tp_flag = 0;
-          intr = 0; // TODO device specific intr
+          intr &= ~TTY_INTR_FLAG;
           break;
         case TPC:
           tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
@@ -484,7 +487,7 @@ int main (int argc, char **argv)
           // TODO nonblocking output?
           tty_tp_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
-            intr = 1;
+            intr |= TTY_INTR_FLAG;
           }
           break;
         case TSK:
@@ -499,7 +502,7 @@ int main (int argc, char **argv)
           // TODO nonblocking output?
           tty_tp_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
-            intr = 1;
+            intr |= TTY_INTR_FLAG;
           }
           break;
         default:
