@@ -95,6 +95,7 @@ short ib = 0; // Instruction buffer
 short sf = 0; // save field
 short df = 0; // data field
 short intr_inhibit = 0; // interrupt inhibit flag
+// TODO remove rtf_delay
 short rtf_delay = 0; //ion will be set after next fetch
 // TODO add F D E state bits
 
@@ -299,7 +300,6 @@ int main (int argc, char **argv)
       exit(EXIT_SUCCESS);
     }
 
-    // TODO, proper DF-handling
     short cur = *(mem+pc); // Much like MB register
     short addr = operand_addr(pc, 0); // Much like CPMA register
     // TODO breakpoints and watch using leftover bits
@@ -812,12 +812,12 @@ void print_instruction(short pc)
           printf(" SRQ");
           break;
         case GTF:
-          // TODO add more fields as support is added. (GT, II, and U)
+          // TODO add more fields as support is added. (GT, and U)
           printf(" GTF (LINK = %o INTR = %o ION = %o IF = %o DF = %o)",
                  LINK, intr, ion, ((sf & 070) >> 3), sf & 07);
           break;
         case RTF:
-          // TODO restore more fields. (GT, II, and U);
+          // TODO restore more fields. (GT, and U);
           printf(" RTF (LINK = %o INHIB = %o ION = %o IF = %o DF = %o)",
                  (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 3) & 07, ac & 07);
           break;
@@ -1040,6 +1040,7 @@ void print_instruction(short pc)
 
           // TODO CLA & MQL is called CAM in some assemblers, support?
           //      MQA & MQL is called SWP in some assemblers.
+          //      CLA & OSR is called LAS
         }
       }
       break;
