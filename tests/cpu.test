@@ -9,7 +9,7 @@
 >>>
 
  >>> STOP AT <<<
-PC = 5314 AC = 207 MQ = 0 DF = 0 IB = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+PC = 5314 AC = 207 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
 >>>= 0
 # 2. CPU Test, state check
 diff prev.core tests/maindec-8e-d0ab-pb.prev.core
@@ -20,7 +20,7 @@ diff prev.core tests/maindec-8e-d0ab-pb.prev.core
 >>>
 
  >>> STOP AT <<<
-PC = 3745 AC = 10207 MQ = 0 DF = 0 IB = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+PC = 3745 AC = 10207 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
 >>>= 0
 # 4. CPU Test, state check
 diff prev.core tests/maindec-8e-d0bb-pb.prev.core
@@ -35,7 +35,7 @@ SIMROT
 FCT
 RANDOM
  >>> STOP AT <<<
-PC = 4544 AC = 0 MQ = 40 DF = 0 IB = 0 SF = 0 SR = 400 ION = 0 INHIB = 0
+PC = 4544 AC = 0 MQ = 40 DF = 0 IB = 0 U = 0 SF = 0 SR = 400 ION = 0 INHIB = 0
 >>>= 0
 # 6. CPU Test, state check
 diff prev.core tests/maindec-8e-d0cc-pb.prev.core
@@ -46,7 +46,7 @@ diff prev.core tests/maindec-8e-d0cc-pb.prev.core
 >>>
 
 A >>> CPU HALTED <<<
-PC = 355 AC = 0 MQ = 5777 DF = 0 IB = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
+PC = 355 AC = 0 MQ = 5777 DF = 0 IB = 0 U = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
 >>>= 1
 # 8. CPU Test, state check
 diff prev.core tests/maindec-8e-d0db-pb.prev1.core
@@ -59,7 +59,7 @@ diff prev.core tests/maindec-8e-d0db-pb.prev1.core
 >>>
 
 A >>> CPU HALTED <<<
-PC = 6755 AC = 10000 MQ = 5777 DF = 0 IB = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
+PC = 6755 AC = 10000 MQ = 5777 DF = 0 IB = 0 U = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
 >>>= 1
 # 10. CPU Test, state check
 diff prev.core tests/maindec-8e-d0db-pb.prev2.core
@@ -72,7 +72,7 @@ diff prev.core tests/maindec-8e-d0db-pb.prev2.core
 >>>
 
 A >>> CPU HALTED <<<
-PC = 355 AC = 0 MQ = 5777 DF = 0 IB = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
+PC = 355 AC = 0 MQ = 5777 DF = 0 IB = 0 U = 0 SF = 0 SR = 2000 ION = 0 INHIB = 0
 >>>= 1
 # 12. CPU Test, state check
 diff prev.core tests/maindec-8e-d0db-pb.prev3.core
@@ -84,7 +84,7 @@ diff prev.core tests/maindec-8e-d0db-pb.prev3.core
 
 T
  >>> STOP AT <<<
-PC = 7460 AC = 0 MQ = 0 DF = 0 IB = 0 SF = 0 SR = 0 ION = 0 INHIB = 0
+PC = 7460 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 0 ION = 0 INHIB = 0
 >>>=0
 # 14. CPU Test, state check
 diff prev.core tests/maindec-8e-d0eb-pb.prev.core
@@ -96,7 +96,7 @@ diff prev.core tests/maindec-8e-d0eb-pb.prev.core
 
 FC
  >>> STOP AT <<<
-PC = 7621 AC = 10000 MQ = 0 DF = 0 IB = 0 SF = 0 SR = 0 ION = 0 INHIB = 0
+PC = 7621 AC = 10000 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 0 ION = 0 INHIB = 0
 >>>=0
 # 16. CPU Test, state check
 diff prev.core tests/maindec-8e-d0fc-pb.prev1.core
@@ -104,11 +104,23 @@ diff prev.core tests/maindec-8e-d0fc-pb.prev1.core
 
 # 17. PDP8-E MEMORY EXTENSION AND TIME SHARE CONTROL TEST
 # Memory test
-./8ball --restore tests/maindec-8e-d1ha-pb.core --run --exit_on_HLT
+./8ball --restore tests/maindec-8e-d1ha-pb.mem_only.core --run --exit_on_HLT
 >>>
  >>> CPU HALTED <<<
-PC = 3652 AC = 0 MQ = 0 DF = 0 IB = 0 SF = 0 SR = 6007 ION = 1 INHIB = 0
+PC = 3575 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 177 SR = 6007 ION = 0 INHIB = 1
 >>>=1
 # 18. Memory Test, state check
+diff prev.core tests/maindec-8e-d1ha-pb.mem_only.prev.core
+>>>=0
+
+
+# 19. PDP8-E MEMORY EXTENSION AND TIME SHARE CONTROL TEST
+# Memory test and Time Share test
+./8ball --restore tests/maindec-8e-d1ha-pb.core --run --exit_on_HLT
+>>>
+ >>> CPU HALTED <<<
+PC = 1566 AC = 4016 MQ = 0 DF = 0 IB = 0 U = 0 SF = 177 SR = 2007 ION = 0 INHIB = 0
+>>>=1
+# 20. Memory Test, state check
 diff prev.core tests/maindec-8e-d1ha-pb.prev.core
 >>>=0

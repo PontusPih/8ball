@@ -143,3 +143,39 @@ CIF.
 
 Oh yes, the EAE bit GT and KM8E U bit is also saved and restored, but
 I haven't implemented and tested that yet :)
+
+Update 29-SEP-2016
+
+Horray, the emulator finally passes the Time Share part of the
+KM8E. It was just as frustrating as implementing the MMU. For
+instance, both CUF and SUF will raise the interrupt inhibit flag but
+the documentation is vague on that detail. Also not obvious is that UF
+_and_ UB is set to zero on an interrupt.
+
+Worth noting is that GTF doesn't put the UF in AC but the status of
+the user interrupt bit. Interrupts also saves the user interrupt bit
+in SF, not UF itself. RTF and RMF restores UB, not UF, analog to IB
+being restored. RMF must also inhibit interrupts.
+
+Again I felt I had to resort to SIMH source code which was a bit
+dissapointing.
+
+A good thing that came of the bout with this side of the PDP-8
+architecture is that I felt the need to implement breakpoints which
+aided greatly in debugging the interrupts and CIFs happening at the
+same time. I also implemented an instruction trace so I could follow
+program flow before a breakpoint hit. With those two tools it was much
+easier to figure out errors.
+
+One bug I would have been much harder to find without the program
+trace. I noticed when doing test 16 of D1HA that one instruction
+suddenly changed in memory!?! It turns out that i calculated the
+"operand address" for _every_ instruction even instructions that
+doesn't have an operand, like IOT instructions. Now, if the IOT
+instruction has a device number which sets the indirect bit and an
+address in the autoincrement index memory range.. well, that index
+would be incrementing. And test 16 has program instructions there
+which got incremented and became something else.
+
+After fixing this, lots of test failed in my own test suite due to the
+post test memory state changed for addresses between 010 and 017 :)

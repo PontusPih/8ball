@@ -98,6 +98,9 @@ short ib = 0; // Instruction buffer
 short sf = 0; // save field
 short df = 0; // data field
 short intr_inhibit = 0; // interrupt inhibit flag
+// Time share registers
+short uf = 0; // User Field
+short ub = 0; // User Buffer
 // TODO remove rtf_delay
 short rtf_delay = 0; //ion will be set after next fetch
 // TODO add F D E state bits
@@ -143,13 +146,18 @@ FILE *tty_fh = NULL;
 #define CDF 01
 #define CIF 02
 #define CDI 03
+#define CINT 000
 #define RDF 010
 #define RIF 020
 #define RIB 030
 #define RMF 040
+#define SINT 050
+#define CUF 060
+#define SUF 070
 
 #define INTR(x) (1 << (x))
 #define TTY_INTR_FLAG INTR(0)
+#define UINTR_FLAG INTR(1)
 
 char in_console = 1;
 
@@ -332,10 +340,10 @@ int main (int argc, char **argv)
       addr = 0;
       ion = 0;
       // Save KM8E registers
-      // TODO save U when implemented
-      sf = (pc & FIELD_MASK) >> 9 | df;
+      sf = ((intr & UINTR_FLAG ? 1 : 0) << 6) | (pc & FIELD_MASK) >> 9 | df;
       pc = pc & B12_MASK;
       df = ib = 0;
+      uf = ub = 0;
     } else {
       if( trace_instruction ){
         print_instruction(pc);
@@ -393,10 +401,10 @@ int main (int argc, char **argv)
       break;
     case JMS:
       if( intr_inhibit ){
-        // restore IF
-        // TODO restore U bit when implemented.
+        // restore IF and UF
         pc = (ib << 12) | (pc & B12_MASK);
         addr = (ib << 12) | (addr & B12_MASK);
+        uf = ub;
         intr_inhibit = 0;
       }
       // Jump and store return address.
@@ -405,14 +413,19 @@ int main (int argc, char **argv)
       break;
     case JMP:
       if( intr_inhibit ){
-        // restore IF
+        // restore IF and UF
         addr = (ib << 12) | (addr & B12_MASK);
+        uf = ub;
         intr_inhibit = 0;
       }
       // Unconditional Jump
       pc = addr;
       break;
     case IOT:
+      if( uf ){ // IOT is a privileged instruction, interrupt
+        intr |= UINTR_FLAG;
+        break;
+      }
       switch( (cur & DEV_MASK) >> 3 ){
       case 00: // Interrupt control
         switch( cur & IOT_OP_MASK ){
@@ -434,9 +447,9 @@ int main (int argc, char **argv)
           }
           break;
         case GTF:
-          // TODO add more fields as support is added. (GT and U)
+          // TODO add more fields as support is added. (GT)
           ac = (ac & LINK_MASK) | // preserve LINK
-               (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | sf;
+               (LINK << 11) | ((intr & UINTR_FLAG ? 1:0) << 6) | ((intr ? 1:0) << 9) | (ion << 7) | sf;
           break;
         case RTF:
           // RTF allways sets ION irregardles of the ION bit in AC.
@@ -445,6 +458,7 @@ int main (int argc, char **argv)
           ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
           ib = (ac & 070) >> 3; // test 05 & test 08
           df = ac & 07;
+          ub = (ac & 0100) >> 6;
           // TODO restore more fields. (GT, and U);
           break;
         case SGT:
@@ -564,6 +578,9 @@ int main (int argc, char **argv)
           break;
         case 04: // READ instruction group
           switch( cur & MMU_DI_MASK ){
+          case CINT:
+            intr &= ~UINTR_FLAG;
+            break;
           case RDF:
             ac |= (df << 3);
             break;
@@ -574,9 +591,22 @@ int main (int argc, char **argv)
             ac |= sf;
             break;
           case RMF:
-            // TODO restore U when implemented
             ib = (sf & 070) >> 3;
             df = (sf & 07);
+            ub = (sf & 0100) >> 6;
+            intr_inhibit = 1;
+            break;
+          case SINT:
+            if( intr & UINTR_FLAG ){
+              pc = INC_PC(pc);
+            }
+            break;
+          case CUF:
+            ub = 0;
+            intr_inhibit = 1;
+            break;
+          case SUF:
+            ub = 1;
             intr_inhibit = 1;
             break;
           default:
@@ -733,6 +763,10 @@ int main (int argc, char **argv)
             }
           }
           // TODO Privileged Group Two instructions
+          if( uf && ( cur & (OSR | HLT) ) ){ // OSR & HLT is privileged instructions, interrupt
+            intr |= UINTR_FLAG;
+            break;
+          }
           if( cur & OSR ){
             ac |= sr;
           }
@@ -838,14 +872,14 @@ void print_instruction(short pc)
           printf(" SRQ");
           break;
         case GTF:
-          // TODO add more fields as support is added. (GT, and U)
-          printf(" GTF (LINK = %o INTR = %o ION = %o IF = %o DF = %o)",
-                 LINK, intr, ion, ((sf & 070) >> 3), sf & 07);
+          // TODO add more fields as support is added. (GT)
+          printf(" GTF (LINK = %o INTR = %o ION = %o U = %o IF = %o DF = %o)",
+                 LINK, intr, ion, ((sf & 0100) >> 6), ((sf & 070) >> 3), sf & 07);
           break;
         case RTF:
-          // TODO restore more fields. (GT, and U);
-          printf(" RTF (LINK = %o INHIB = %o ION = %o IF = %o DF = %o)",
-                 (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 3) & 07, ac & 07);
+          // TODO restore more fields. (GT);
+          printf(" RTF (LINK = %o INHIB = %o ION = %o U = %o IF = %o DF = %o)",
+                 (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 6) & 1, (ac >> 3) & 07, ac & 07);
           break;
         case SGT:
           // TODO add with EAE support
@@ -904,7 +938,6 @@ void print_instruction(short pc)
           break;
         default:
           printf("illegal IOT instruction. device 04 - TTY output\n");
-          in_console = 1;
           break;
         }
         break;
@@ -929,6 +962,9 @@ void print_instruction(short pc)
         case 04:
           // Mask out the "FIELD" bits which are OPCODES here.
           switch( (cur & MMU_DI_MASK) >> 3 ){
+          case 00:
+            printf(" CINT");
+            break;
           case 01:
             printf(" RDF");
             break;
@@ -940,6 +976,15 @@ void print_instruction(short pc)
             break;
           case 04:
             printf(" RMF");
+            break;
+          case 05:
+            printf(" SINT");
+            break;
+          case 06:
+            printf(" CUF");
+            break;
+          case 07:
+            printf(" SUF");
             break;
           default:
             printf(" illegal IOT instruction. MMU(1) device");
@@ -1081,7 +1126,7 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 
 void print_regs()
 {
-  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o SF = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, sf, sr, ion, intr_inhibit);
+  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o U = %o SF = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, uf, sf, sr, ion, intr_inhibit);
 }
 
 short read_12bit_octal(const char *buf)
