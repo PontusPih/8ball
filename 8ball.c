@@ -1186,7 +1186,7 @@ char console()
         skip_line += 4;
         if( ! strncasecmp(skip_line, "pc=", 3) ){
           skip_line += 3;
-          pc = read_12bit_octal(skip_line);
+          pc = read_15bit_octal(skip_line);
         }
 
         if( ! strncasecmp(skip_line, "sr=", 3) ){
