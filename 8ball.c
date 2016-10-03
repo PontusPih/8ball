@@ -267,25 +267,23 @@ int main (int argc, char **argv)
   while(1){
 
     // TTY and console handling:
-    char input;
-    char nchar = read(0, &input, 1); // TODO only read() if tty_kb_flag==0
-    if( nchar || tty_read_from_file ){
-      if( (nchar || tty_read_from_file) && !tty_kb_flag ){
-        // If keyboard flag is not set, try to read one char.
-        if( tty_read_from_file ){
-          int byte = fgetc( tty_fh );
-          // printf( "read %d from file\n", byte);
-          if( byte != EOF ){
-            tty_kb_buf = byte;
-            tty_kb_flag = 1;
-          } else {
-            printf("Reached end of TTY file, dropping to console. "
-                   "Further reads will be from keyboard\n");
-            fclose( tty_fh );
-            tty_read_from_file = 0;
-            in_console = 1;
-          }
+    if( !tty_kb_flag ){
+      // If keyboard flag is not set, try to read one char.
+      if( tty_read_from_file ){
+        int byte = fgetc( tty_fh );
+        if( byte != EOF ){
+          tty_kb_buf = byte;
+          tty_kb_flag = 1;
         } else {
+          printf("Reached end of TTY file, dropping to console. "
+                 "Further reads will be from keyboard\n");
+          fclose( tty_fh );
+          tty_read_from_file = 0;
+          in_console = 1;
+        }
+      } else {
+        char input;
+        if( read(0, &input, 1) > 0 ){
           tty_kb_buf = input;
           tty_kb_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
