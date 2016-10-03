@@ -269,11 +269,7 @@ int main (int argc, char **argv)
     // TTY and console handling:
     char input;
     char nchar = read(0, &input, 1); // TODO only read() if tty_kb_flag==0
-    if( nchar || in_console || tty_read_from_file ){
-      if( input == 033 || in_console ){
-        in_console = console();
-      }
-
+    if( nchar || tty_read_from_file ){
       if( (nchar || tty_read_from_file) && !tty_kb_flag ){
         // If keyboard flag is not set, try to read one char.
         if( tty_read_from_file ){
@@ -287,7 +283,7 @@ int main (int argc, char **argv)
                    "Further reads will be from keyboard\n");
             fclose( tty_fh );
             tty_read_from_file = 0;
-            in_console = console();
+            in_console = 1;
           }
         } else {
           tty_kb_buf = input;
@@ -331,6 +327,17 @@ int main (int argc, char **argv)
       addr = (addr & B12_MASK) | (df << 12);
     }
 
+    if( breakpoints[pc] & BREAKPOINT ){
+      printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
+      // TODO add "clear all" breakpoints
+      // TODO add "list" breakpoints
+      in_console = 1;
+    }
+
+    if( in_console ){
+      in_console = console();
+    }
+
     if( ion && intr && (! intr_inhibit) ){
       // An interrupt occured, disable interrupts, force JMS to 0000
       if( trace_instruction ){
@@ -352,14 +359,6 @@ int main (int argc, char **argv)
       // actually occurs at the end of an execution cycle, before
       // the next fetch cycle.
       pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
-    }
-
-    if( breakpoints[pc] & BREAKPOINT ){
-      printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
-      // TODO add "clear all" breakpoints
-      // TODO add "list" breakpoints
-      // TODO fix console call order. (preferably allways after pc has been calculated.
-      in_console = console();
     }
 
     if( ion_delay ){
