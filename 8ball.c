@@ -309,6 +309,17 @@ int main (int argc, char **argv)
       exit(EXIT_SUCCESS);
     }
 
+    if( breakpoints[pc] & BREAKPOINT ){
+      printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
+      // TODO add "clear all" breakpoints
+      // TODO add "list" breakpoints
+      in_console = 1;
+    }
+
+    if( in_console ){
+      in_console = console();
+    }
+
     short cur = *(mem+pc); // Much like MB register
     short addr = -1; // Much like CPMA register
     if( (cur & IF_MASK) <= JMP ){
@@ -325,17 +336,6 @@ int main (int argc, char **argv)
       // For JMP and JMS it is already set by IF.
       // For IOT and OPR it doesn't matter.
       addr = (addr & B12_MASK) | (df << 12);
-    }
-
-    if( breakpoints[pc] & BREAKPOINT ){
-      printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
-      // TODO add "clear all" breakpoints
-      // TODO add "list" breakpoints
-      in_console = 1;
-    }
-
-    if( in_console ){
-      in_console = console();
     }
 
     if( ion && intr && (! intr_inhibit) ){
