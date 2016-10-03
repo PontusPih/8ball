@@ -27,6 +27,7 @@
 #define DEV_MASK 0770
 #define IOT_OP_MASK 07
 #define MMU_DI_MASK 070
+#define BREAKPOINT 0100000
 
 #define INSTR(x) ((x)<<9)
 // TODO use INC_12BIT in more places
@@ -79,6 +80,7 @@
 #define CAF 07
 
 short mem[MEMSIZE];
+short breakpoints[MEMSIZE];
 
 // TODO implement "clear" command that initializes these variables,
 // just like the clear switch on a real front panel.
@@ -219,6 +221,7 @@ short operand_addr(short pc, char examine)
 int main (int argc, char **argv)
 {
   memset(mem, 0, sizeof(mem));
+  memset(breakpoints, 0, sizeof(breakpoints));
 #include "rimloader.h"
   pc = 07756;
 
@@ -326,6 +329,14 @@ int main (int argc, char **argv)
       // actually occurs at the end of an execution cycle, before
       // the next fetch cycle.
       pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
+    }
+
+    if( breakpoints[pc] & BREAKPOINT ){
+      printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
+      // TODO add "clear all" breakpoints
+      // TODO add "list" breakpoints
+      // TODO fix console call order. (preferably allways after pc has been calculated.
+      in_console = console();
     }
 
     if( ion_delay ){
@@ -1135,6 +1146,14 @@ char console()
         while( start <= end ){
           print_instruction(start);
           start++;
+        }
+      }
+
+      if( ! strncasecmp(skip_line, "b ", 2) ){
+        skip_line += 2;
+        int val = read_15bit_octal(skip_line);
+        if( val > 0 && val < MEMSIZE ){
+          breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
         }
       }
 
