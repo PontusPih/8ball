@@ -81,6 +81,7 @@
 
 short mem[MEMSIZE];
 short breakpoints[MEMSIZE];
+char trace_instruction = 0;
 
 // TODO implement "clear" command that initializes these variables,
 // just like the clear switch on a real front panel.
@@ -167,6 +168,7 @@ struct termios told, tnew;
 void completion_cb(const char *buf, linenoiseCompletions *lc);
 char console();
 void print_regs();
+void print_instruction(short pc);
 int save_state(char *filename);
 int restore_state(char *filename);
 void exit_cleanup();
@@ -316,6 +318,9 @@ int main (int argc, char **argv)
 
     if( ion && intr && (! intr_inhibit) ){
       // An interrupt occured, disable interrupts, force JMS to 0000
+      if( trace_instruction ){
+        printf("%.6o  %.6o INTERRUPT ==> JMS to 0", pc, cur);
+      }
       cur = JMS;
       addr = 0;
       ion = 0;
@@ -325,6 +330,9 @@ int main (int argc, char **argv)
       pc = pc & B12_MASK;
       df = ib = 0;
     } else {
+      if( trace_instruction ){
+        print_instruction(pc);
+      }
       // Don't increment PC in case of an interrupt. An interrupt
       // actually occurs at the end of an execution cycle, before
       // the next fetch cycle.
@@ -1155,6 +1163,10 @@ char console()
         if( val > 0 && val < MEMSIZE ){
           breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
         }
+      }
+
+      if( ! strncasecmp(skip_line, "trace", 5) ){
+        trace_instruction = !trace_instruction;
       }
 
       if( ! strncasecmp(skip_line, "set ", 4) ){
