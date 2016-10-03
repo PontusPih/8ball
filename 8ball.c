@@ -327,7 +327,7 @@ int main (int argc, char **argv)
       // indirect bit set (e.g. 6410) will ruin that location.
       addr = operand_addr(pc, 0);
     }
-    // TODO breakpoints and watch using leftover bits
+    // TODO add watch on memory cells
 
     if( (cur & I_MASK) && (cur & IF_MASK) < JMS ){
       // For indirect AND, TAD, ISZ and DCA the field is set by DF.
@@ -356,7 +356,7 @@ int main (int argc, char **argv)
       // Don't increment PC in case of an interrupt. An interrupt
       // actually occurs at the end of an execution cycle, before
       // the next fetch cycle.
-      pc = INC_PC(pc); // PC is incremented after fetch, so JMP works :)
+      pc = INC_PC(pc); // PC is incremented after fetch, so JMS works :)
     }
 
     if( ion_delay ){
@@ -453,7 +453,7 @@ int main (int argc, char **argv)
           ion = 1;
           intr_inhibit = 1;
           ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
-          ib = (ac & 070) >> 3; // test 05 & test 08
+          ib = (ac & 070) >> 3;
           df = ac & 07;
           ub = (ac & 0100) >> 6;
           // TODO restore more fields. (GT, and U);
@@ -759,7 +759,6 @@ int main (int argc, char **argv)
               pc = INC_PC(pc);
             }
           }
-          // TODO Privileged Group Two instructions
           if( uf && ( cur & (OSR | HLT) ) ){ // OSR & HLT is privileged instructions, interrupt
             intr |= UINTR_FLAG;
             break;
@@ -916,7 +915,7 @@ void print_instruction(short pc)
       case 04: // Console tty output
         switch( cur & IOT_OP_MASK ){
         case TFL:
-          printf(" TFL");
+          printf(" TFL"); // TODO called SPF in some assemblers?
           break;
         case TSF:
           printf(" TSF");
@@ -928,7 +927,7 @@ void print_instruction(short pc)
           printf(" TPC");
           break;
         case TSK:
-          printf(" TSK");
+          printf(" TSK"); // TODO called SPI in some assemblers?
           break;
         case TLS:
           printf(" TLS");
@@ -1205,7 +1204,7 @@ char console()
         }
 
         int end = read_15bit_octal(skip_line);
-
+        // TODO support examine single address (check for '\n')
         while( start <= end ){
           print_instruction(start);
           start++;
@@ -1332,6 +1331,7 @@ int save_state(char *filename)
     return 0;
   }
 
+  // TODO save/restore more state variables
   fprintf(core, "8BALL MEM DUMP VERSION=1\n");
   fprintf(core, "CPU STATE:\n");
   fprintf(core, "PC = %.5o AC = %.4o MQ = %.4o DF = %.2o SR = %.4o\n",
