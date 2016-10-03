@@ -1109,7 +1109,13 @@ char console()
   char *line;
   char done = 0;
   char in_console = 0;
-  while(!done && (line = linenoise(">> ")) != NULL) {
+  while(!done){
+    line = linenoise(">> ");
+    if( line == NULL ){
+      // A ctrl+c can get us here.
+      // TODO exit?! and/or verify signal?
+      continue;
+    }
     if (line[0] != '\0' ) {
       linenoiseHistoryAdd(line);
       
