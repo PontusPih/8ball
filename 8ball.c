@@ -306,7 +306,14 @@ int main (int argc, char **argv)
     }
 
     short cur = *(mem+pc); // Much like MB register
-    short addr = operand_addr(pc, 0); // Much like CPMA register
+    short addr = -1; // Much like CPMA register
+    if( (cur & IF_MASK) <= JMP ){
+      // Only calculate addr if the current instruction is an Memory
+      // Referencing Instruction (MRI). Otherwise an instruction that
+      // happens address an autoindexing location _and_ have the
+      // indirect bit set (e.g. 6410) will ruin that location.
+      addr = operand_addr(pc, 0);
+    }
     // TODO breakpoints and watch using leftover bits
 
     if( (cur & I_MASK) && (cur & IF_MASK) < JMS ){
