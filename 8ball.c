@@ -244,10 +244,13 @@ int main (int argc, char **argv)
   /* Set the completion callback. This will be called every time the
    * user uses the <tab> key. */
   linenoiseSetCompletionCallback(completion_cb);
+
+  /* Set max lines of history to something arbitrary*/
+  linenoiseHistorySetMaxLen(500);
   
   /* Load history from file. The history file is just a plain text file
    * where entries are separated by newlines. */
-  /* linenoiseHistoryLoad("history.txt"); / * Load the history at startup */
+  linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
   
   // Setup terminal for noncanonical mode:
   
@@ -1303,14 +1306,16 @@ char console()
         }
       }
 
-      if( ! strncasecmp(skip_line, "exit", 4) ){
+      if( ! strncasecmp(skip_line, "quit\0", 5) || ! strncasecmp(skip_line, "exit\0", 5) ){
+        linenoiseHistorySave("history.txt");
         exit(EXIT_SUCCESS);
       }
       
     } 
     free(line);
   }
-  
+
+  linenoiseHistorySave("history.txt");
   return in_console;
 }
 
