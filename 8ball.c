@@ -1131,8 +1131,9 @@ void print_regs()
 
 short read_12bit_octal(const char *buf)
 {
-  unsigned int res = 0; // TODO use strtol
-  if( sscanf(buf, "%o", &res) != 1 ){
+  char *endptr;
+  unsigned int res = strtol(buf, &endptr, 8);
+  if( *endptr != '\0' ){
     printf("Unable to parse octal value.\n");
     return -1;
   }
@@ -1154,358 +1155,6 @@ short read_15bit_octal(const char *buf)
     printf("Octal value to large, truncated: %.6o\n", res & 077777);
   }
   return (short)(res & 077777);
-}
-
-void new_parser(char *line);
-
-char console()
-{
-  char *line;
-  char done = 0;
-  char in_console = 0;
-  while(!done){
-    line = linenoise(">> ");
-    if( line == NULL ){
-      if( errno == EAGAIN ){
-        // linenoise will set errno to EAGAIN if it reads ctrl+c
-        linenoiseHistorySave("history.txt");
-        printf("^C in console, exiting.\n");
-        exit(EXIT_FAILURE);
-      }
-      continue;
-    }
-    if (line[0] != '\0' ) {
-      linenoiseHistoryAdd(line);
-
-      new_parser(line);
-      continue;
-      
-      char *token = strtok(line, " \t");
-
-      if( NULL == token ){
-        continue;
-      }
-
-      // TODO make sure each successfully parsed command does a "continue".
-      // TODO make sure trailing garbage is treated as an error.
-      if( ! strncasecmp(token, "help\0", 5) ){
-        printf("Run control commands:\n\n"
-               "    (b)reak    (r)un    (s)tep    (t)race\n\n"
-               "Memory control commands:\n\n"
-               "    (d)eposit    (e)xamine     (sh)ow    (sa)ve    (re)store\n\n"
-               "Device specific:\n\n"
-               "    (tty_a)ttach   (tty_s)ource\n\n"
-               "Emulator control:\n\n"
-               "    (exit)\n\n"
-               "Type \"help command\" for details.\n\n");
-        // TODO help text for each command
-      }
-
-      if( ! strncasecmp(token, "s\0", 2) || !strncasecmp(token, "step\0", 5) ){
-        print_regs();
-        printf("\t\t");
-        print_instruction(pc);
-        in_console = 1;
-        done = 1;
-      }
-
-      if( ! strncasecmp(token, "r\0", 2) || ! strncasecmp(token, "run\0", 4) ){
-        in_console = 0;
-        done = 1;
-      }
-      
-      if( ! strncasecmp(token, "sh\0", 2) || ! strncasecmp(token, "show\0", 5) ){
-        print_regs();
-        printf("\n");
-      }
-
-      if( ! strncasecmp(token, "e\0", 2) || ! strncasecmp(token, "examine\0", 8) ){
-        token = strtok(NULL, " \t");
-        if( NULL == token ){
-          continue;
-        }
-        // TODO add "cpu" instead of show
-        if( ! strncasecmp(token, "pc", 2) ){
-          printf("PC = %o\n", pc);
-          continue;
-        }
-        if( ! strncasecmp(token, "ac", 2) ){
-          printf("AC = %o\n", ac);
-          continue;
-        }
-        if( ! strncasecmp(token, "mq", 2) ){
-          printf("MQ = %o\n", mq);
-          continue;
-        }
-        if( ! strncasecmp(token, "sr", 2) ){
-          printf("SR = %o\n", sr);
-          continue;
-        }
-        if( ! strncasecmp(token, "ion", 3) ){
-          printf("ION = %o\n", ion);
-          continue;
-        }
-        if( ! strncasecmp(token, "intr", 4) ){
-          printf("INTR = %o\n", intr);
-          continue;
-        }
-        if( ! strncasecmp(token, "sf", 2) ){
-          printf("SF = %o\n", sf);
-          continue;
-        }
-        if( ! strncasecmp(token, "df", 2) ){
-          printf("DF = %o\n", df);
-          continue;
-        }
-        if( ! strncasecmp(token, "if", 2) ){
-          printf("IF = %o\n", (pc & IF_MASK) >> 12);
-          continue;
-        }
-        if( ! strncasecmp(token, "inhib", 2) ){
-          printf("INHIB = %o\n", intr_inhibit);
-          continue;
-        }
-        if( ! strncasecmp(token, "ib", 2) ){
-          printf("IB = %o\n", ib);
-          continue;
-        }
-        if( ! strncasecmp(token, "uf", 2) ){
-          printf("UF = %o\n", uf);
-          continue;
-        }
-        if( ! strncasecmp(token, "ub", 2) ){
-          printf("UB = %o\n", ub);
-          continue;
-        }
-        if( ! strncasecmp(token, "tty", 3) ){
-          printf("TTY keyboard: buf = %o flag = %d\n"
-                 "TTY printer:  buf = %o flag = %d\n"
-                 "TTY DCR = %o\n", tty_kb_buf, tty_kb_flag, tty_tp_buf, tty_tp_flag, tty_dcr);
-          continue;
-        }
-
-        int start = read_15bit_octal(token);
-        int end = start;
-
-        token = strtok(NULL, " \t");
-        if( NULL != token ){
-          end = read_15bit_octal(token);
-        }
-
-        if( start == -1 || end == -1 ){
-          continue;
-        }
-
-        while( start <= end ){
-          print_instruction(start);
-          start++;
-        }
-        continue;
-      }
-
-      if( ! strncasecmp(token, "b\0", 2) || !strncasecmp(token, "break\0", 6) ){
-        token = strtok(NULL, " \t");
-        int val = read_15bit_octal(token);
-        if( val > 0 && val < MEMSIZE ){
-          breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
-          if( breakpoints[val] ){
-            printf("Breakpoint set at %o\n", val);
-          } else {
-            printf("Breakpoint at %o cleared\n", val);
-          }
-        }
-      }
-
-      if( ! strncasecmp(token, "t\0", 2) || ! strncasecmp(token, "trace\0", 6) ){
-        // TODO printe trace status
-        trace_instruction = !trace_instruction;
-      }
-
-      if( ! strncasecmp(token, "d\0", 2) || ! strncasecmp(token, "deposit\0", 8) ){
-        token = strtok(NULL, " \t");
-        if( NULL == token ){
-          // TODO error message
-          continue;
-        }
-
-        if( ! strncasecmp(token, "pc\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_15bit_octal(token);
-          if( val > 0 ){
-            pc = val;
-            printf("PC = %o\n", pc);
-          }
-          continue;
-        }
-
-        if( ! strncasecmp(token, "sr\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_12bit_octal(token);
-          if( val > 0 ){
-            sr = val;
-            printf("SR = %o\n", sr);
-          }
-          continue;
-        }
-
-        if( ! strncasecmp(token, "ac\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_12bit_octal(token);
-          if( val > 0 ){
-            ac = val;
-            printf("AC = %o\n", ac);
-          }
-          continue;
-        }
-
-        if( ! strncasecmp(token, "df\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_12bit_octal(token);
-          if( val > 0 ){
-            df = val;
-            printf("DF = %o\n", df);
-          }
-          continue;
-        }
-
-        if( ! strncasecmp(token, "mq\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_12bit_octal(token);
-          if( val > 0 ){
-            mq = val;
-            printf("MQ = %o\n", mq);
-          }
-          continue;
-        }
-
-        if( ! strncasecmp(token, "if\0", 3) ){
-          token = strtok(NULL, " \t");
-          if( NULL == token ){
-            // TODO error message
-            continue;
-          }
-          short val = read_12bit_octal(token);
-          if( val >= 0 ){
-            pc = ((val << 12 ) & FIELD_MASK) | (pc & B12_MASK);
-            printf("IF = %o\n", (pc & FIELD_MASK) >> 12);
-          }
-          continue;
-        }
-
-        short addr=-1, val=-1;
-        if( NULL != token ){
-          addr = read_15bit_octal(token);
-        }
-
-        token = strtok(NULL, " \t");
-        if( NULL != token ){
-          val = read_12bit_octal(token);
-        }
-
-        if( addr >= 0 && val >= 0 ){
-          mem[addr] = val;
-          print_instruction(addr);
-        }
-        continue;
-      }
-
-      if( ! strncasecmp(token, "tty_a\0", 6) || ! strncasecmp(token, "tty_attach\0", 11) ){
-        if( tty_read_from_file ){
-          printf("Unable to set new file name, tty_file currently open\n");
-        } else {
-          token = strtok(NULL, " \t");
-          if( NULL != token ){
-            strncpy(tty_file, token, 100);
-            continue;
-          } else {
-            // TODO error
-          }
-        }
-      }
-
-      if( ! strncasecmp(token, "tty_s\0", 6) || ! strncasecmp(token, "tty_source\0", 11) ){
-        tty_read_from_file = ! tty_read_from_file;
-        if( tty_read_from_file ){
-          tty_fh = fopen(tty_file,"r");
-          if( tty_fh == NULL ){
-            tty_read_from_file = 0;
-            printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
-          } else {
-            printf("TTY input from file: \"%s\"\n", tty_file);
-          }
-        } else {
-          if( fclose(tty_fh) ){
-            printf("Unable to close tty_file\n");
-          }
-          printf("TTY input from keyboard\n");
-        }
-      }
-        
-      if( ! strncasecmp(token, "sa\0", 3) || ! strncasecmp(token, "save\0", 5) ){
-        token = strtok(NULL, " \t");
-        if( NULL != token ){
-          int do_save=0;
-          if(access(token,F_OK) != -1){
-            printf("File exists, are you sure? [Y/N]\n");
-            char input;
-            while(read(0, &input, 1)==0){};
-            printf("%c\n",input);
-            if(input == 'Y' || input == 'y'){
-              do_save=1;
-            }
-          } else {
-            do_save=1;
-          }
-          if(do_save && save_state(token)){
-            printf("CPU state saved\n");
-          }
-        }
-        continue;
-      }
-
-      if( !strncasecmp(token, "re\0", 3) || ! strncasecmp(token, "restore\0", 8) ){
-        token = strtok(NULL, " \t");
-        if( NULL != token ){
-          if( ! restore_state(token) ) {
-            printf("Unable to restore state, state unchanged\n");
-          } else {
-            printf("CPU state restored\n");
-          }
-        }
-        continue;
-      }
-
-      if( ! strncasecmp(skip_line, "quit\0", 5) || ! strncasecmp(skip_line, "exit\0", 5) ){
-        linenoiseHistorySave("history.txt");
-        exit(EXIT_SUCCESS);
-      }
-      
-    } 
-    free(line);
-  }
-
-  linenoiseHistorySave("history.txt");
-  return in_console;
 }
 
 typedef enum {
@@ -1617,315 +1266,369 @@ void to_few_args(){
   printf("Syntax ERROR, too few arguments\n");
 }
 
-void new_parser(char *line)
+char console()
 {
-  char *_1st_str = strtok(line, " \t");
-  char *_2nd_str = strtok(NULL, " \t");
-  char *_3rd_str = strtok(NULL, " \t");
-
-  token _1st_tok = map_token(_1st_str);
-  token _2nd_tok = map_token(_2nd_str);
-  token _3rd_tok = map_token(_3rd_str);
-
-  char *trail = strtok(NULL, " \t");
-
-  if( NULL != trail )
-    return to_many_args();
-
-  int val = -1;
-
-  switch(_1st_tok){
-  case BREAK:
-    if( NULL_TOKEN != _3rd_tok )
-      return to_many_args();
-    if( NULL_TOKEN == _2nd_tok )
-      return to_few_args();
-
-    val = read_15bit_octal(_2nd_str);
-    if( val > 0 && val < MEMSIZE ){
-      breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
-      if( breakpoints[val] ){
-        printf("Breakpoint set at %o\n", val);
-      } else {
-        printf("Breakpoint at %o cleared\n", val);
+  char *line;
+  char done = 0;
+  char in_console = 0;
+  while(!done){
+    line = linenoise(">> ");
+    if( line == NULL ){
+      if( errno == EAGAIN ){
+        // linenoise will set errno to EAGAIN if it reads ctrl+c
+        linenoiseHistorySave("history.txt");
+        printf("^C in console, exiting.\n");
+        exit(EXIT_FAILURE);
       }
-    } else {
-      printf("ERROR, breakpoint outside memory\n");
+      continue;
     }
+    if (line[0] != '\0' ) {
+      linenoiseHistoryAdd(line);
 
-    break;
-  case EXAMINE:
+      char *_1st_str = strtok(line, " \t");
+      char *_2nd_str = strtok(NULL, " \t");
+      char *_3rd_str = strtok(NULL, " \t");
 
-    if( OCTAL_LITERAL != _2nd_tok )
-      if( NULL_TOKEN != _3rd_tok )
-        return to_many_args();
+      token _1st_tok = map_token(_1st_str);
+      token _2nd_tok = map_token(_2nd_str);
+      token _3rd_tok = map_token(_3rd_str);
 
-    int start, end;
-    switch(_2nd_tok) {
-    case E_AC:
-      printf("AC = %o\n", ac);
-      break;
-    case E_MQ:
-      printf("MQ = %o\n", mq);
-      break;
-    case E_SR:
-      printf("SR = %o\n", sr);
-      break;
-    case E_ION:
-      printf("ION = %o\n", ion);
-      break;
-    case E_INTR:
-      printf("INTR = %o\n", intr);
-      break;
-    case E_SF:
-      printf("SF = %o\n", sf);
-      break;
-    case E_DF:
-      printf("DF = %o\n", df);
-      break;
-    case E_IF:
-      printf("IF = %o\n", (pc & IF_MASK) >> 12);
-      break;
-    case E_INHIB:
-      printf("INHIB = %o\n", intr_inhibit);
-      break;
-    case E_IB:
-      printf("IB = %o\n", ib);
-      break;
-    case E_UF:
-      printf("UF = %o\n", uf);
-      break;
-    case E_UB:
-      printf("UB = %o\n", ub);
-      break;
-    case E_PC:
-      printf("PC = %o\n", pc);
-      break;
-    case E_TTY:
-      printf("TTY keyboard: buf = %o flag = %d\n"
-             "TTY printer:  buf = %o flag = %d\n"
-             "TTY DCR = %o\n", tty_kb_buf, tty_kb_flag, tty_tp_buf, tty_tp_flag, tty_dcr);
-      break;
-    case E_CPU:
-      print_regs();
-      printf("\n");
-      break;
-    case OCTAL_LITERAL:
-      if( _3rd_tok != NULL_TOKEN && _3rd_tok != OCTAL_LITERAL ) {
-        printf("Syntax ERROR, non octal end of interval\n");
-        return;
+      char *trail = strtok(NULL, " \t");
+
+      if( NULL != trail ) {
+        to_many_args();
+        continue;
       }
 
-      start = read_15bit_octal(_2nd_str);
-      end = start;
+      int val = -1;
 
-      if( OCTAL_LITERAL == _3rd_tok ){
-        end = read_15bit_octal(_3rd_str);
-      }
-
-      if( start == -1 || end == -1 ){
-        printf("Syntax ERROR, bad interval\n");
-        return;
-      }
-
-      while( start <= end ){
-        print_instruction(start);
-        start++;
-      }
-      break;
-    case BAD_TOKEN:
-      printf("Syntax ERROR, examine what?\n");
-      break;
-    case NULL_TOKEN:
-      return to_few_args();
-    default:
-      printf("Syntax ERROR, examine what?\n");
-      break;
-    }
-    break;
-  case EXIT:
-    if( NULL_TOKEN != _2nd_tok )
-      return to_many_args();
-
-    linenoiseHistorySave("history.txt");
-    exit(EXIT_SUCCESS);
-    break;
-  case DEPOSIT:
-    if( NULL_TOKEN == _2nd_tok || NULL_TOKEN == _3rd_tok )
-      return to_few_args();
-
-    if( OCTAL_LITERAL != _3rd_tok ){
-      printf("Syntax ERROR, non-octal value to deposit\n");
-      return;
-    }
-    int addr=-1, val=-1;
-    switch( _2nd_tok ) {
-    case E_AC:
-      val = read_12bit_octal(_3rd_str);
-      if( val >= 0 ){
-        ac = val;
-        printf("AC = %o\n", ac);
-      }
-      break;
-    case E_MQ:
-      val = read_12bit_octal(_3rd_str);
-      if( val >= 0 ){
-        mq = val;
-        printf("MQ = %o\n", mq);
-      }
-      break;
-    case E_SR:
-      val = read_12bit_octal(_3rd_str);
-      if( val >= 0 ){
-        sr = val;
-        printf("SR = %o\n", sr);
-      }
-      break;
-    case E_DF:
-      val = read_12bit_octal(_3rd_str);
-      if( val >= 0 ){
-        df = val;
-        printf("DF = %o\n", df);
-      }
-      break;
-    case E_IF:
-      val = read_12bit_octal(_3rd_str);
-      if( val >= 0 && val <= 3){
-        pc = ((val << 12 ) & FIELD_MASK) | (pc & B12_MASK);
-        printf("IF = %o\n", (pc & FIELD_MASK) >> 12);
-      } else {
-        printf("Syntax ERROR, IF can be between 0 and 03\n");
-      }
-      break;
-    case E_PC:
-      val = read_15bit_octal(_3rd_str);
-      if( val >= 0 ){
-        pc = val;
-        printf("PC = %o\n", pc);
-      }
-      break;
-    case OCTAL_LITERAL:
-      addr = read_15bit_octal(_2nd_str);
-      val = read_12bit_octal(_3rd_str);
-      if( addr >= 0 && val >= 0 ){
-        mem[addr] = val;
-        print_instruction(addr);
-      }
-      break;
-    default:
-      printf("Syntax ERROR, deposit to what?\n");
-    }
-    break;
-  case HELP:
-    printf("Run control commands:\n\n"
-           "    (b)reak    (r)un    (s)tep    (t)race\n\n"
-           "Memory control commands:\n\n"
-           "    (d)eposit    (e)xamine     (sa)ve    (re)store\n\n"
-           "Device specific:\n\n"
-           "    (tty_a)ttach   (tty_s)ource\n\n"
-           "Emulator control:\n\n"
-           "    (exit)\n\n"
-           "Type \"help command\" for details.\n\n");
-    // TODO help text for each command
-    break;
-  case RUN:
-    in_console = 0;
-    // TODO done;
-    break;
-  case SAVE:
-    if( NULL_TOKEN != _3rd_tok )
-      return to_many_args();
-
-    if( NULL_TOKEN != _2nd_tok ){
-      int do_save=0;
-      if(access(_2nd_str, F_OK) != -1){
-        printf("File exists, are you sure? [Y/N]\n");
-        char input;
-        while(read(0, &input, 1)==0){};
-        printf("%c\n",input);
-        if(input == 'Y' || input == 'y'){
-          do_save=1;
+      switch(_1st_tok){
+      case BREAK:
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
         }
-      } else {
-        do_save=1;
+        if( NULL_TOKEN == _2nd_tok ){
+          to_few_args();
+          break;
+        }
+
+        val = read_15bit_octal(_2nd_str);
+        if( val > 0 && val < MEMSIZE ){
+          breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
+          if( breakpoints[val] ){
+            printf("Breakpoint set at %o\n", val);
+          } else {
+            printf("Breakpoint at %o cleared\n", val);
+          }
+        } else {
+          printf("ERROR, breakpoint outside memory\n");
+        }
+
+        break;
+      case EXAMINE:
+
+        if( OCTAL_LITERAL != _2nd_tok ){
+          if( NULL_TOKEN != _3rd_tok ){
+            to_many_args();
+            break;
+          }
+        }
+
+        int start, end;
+        switch(_2nd_tok) {
+        case E_AC:
+          printf("AC = %o\n", ac);
+          break;
+        case E_MQ:
+          printf("MQ = %o\n", mq);
+          break;
+        case E_SR:
+          printf("SR = %o\n", sr);
+          break;
+        case E_ION:
+          printf("ION = %o\n", ion);
+          break;
+        case E_INTR:
+          printf("INTR = %o\n", intr);
+          break;
+        case E_SF:
+          printf("SF = %o\n", sf);
+          break;
+        case E_DF:
+          printf("DF = %o\n", df);
+          break;
+        case E_IF:
+          printf("IF = %o\n", (pc & IF_MASK) >> 12);
+          break;
+        case E_INHIB:
+          printf("INHIB = %o\n", intr_inhibit);
+          break;
+        case E_IB:
+          printf("IB = %o\n", ib);
+          break;
+        case E_UF:
+          printf("UF = %o\n", uf);
+          break;
+        case E_UB:
+          printf("UB = %o\n", ub);
+          break;
+        case E_PC:
+          printf("PC = %o\n", pc);
+          break;
+        case E_TTY:
+          printf("TTY keyboard: buf = %o flag = %d\n"
+                 "TTY printer:  buf = %o flag = %d\n"
+                 "TTY DCR = %o\n", tty_kb_buf, tty_kb_flag, tty_tp_buf, tty_tp_flag, tty_dcr);
+          break;
+        case E_CPU:
+          print_regs();
+          printf("\n");
+          break;
+        case OCTAL_LITERAL:
+          if( _3rd_tok != NULL_TOKEN && _3rd_tok != OCTAL_LITERAL ) {
+            printf("Syntax ERROR, non octal end of interval\n");
+            break;
+          }
+
+          start = read_15bit_octal(_2nd_str);
+          end = start;
+
+          if( OCTAL_LITERAL == _3rd_tok ){
+            end = read_15bit_octal(_3rd_str);
+          }
+
+          if( start == -1 || end == -1 ){
+            printf("Syntax ERROR, bad interval\n");
+            break;
+          }
+
+          while( start <= end ){
+            print_instruction(start);
+            start++;
+          }
+          break;
+        case BAD_TOKEN:
+          printf("Syntax ERROR, examine what?\n");
+          break;
+        case NULL_TOKEN:
+          to_few_args();
+          break;
+        default:
+          printf("Syntax ERROR, examine what?\n");
+          break;
+        }
+        break;
+      case EXIT:
+        if( NULL_TOKEN != _2nd_tok ){
+          to_many_args();
+          break;
+        }
+
+        linenoiseHistorySave("history.txt");
+        exit(EXIT_SUCCESS);
+        break;
+      case DEPOSIT:
+        if( NULL_TOKEN == _2nd_tok || NULL_TOKEN == _3rd_tok ){
+          to_few_args();
+          break;
+        }
+
+        if( OCTAL_LITERAL != _3rd_tok ){
+          printf("Syntax ERROR, non-octal value to deposit\n");
+          break;
+        }
+        int addr=-1, val=-1;
+        switch( _2nd_tok ) {
+        case E_AC:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            ac = val;
+            printf("AC = %o\n", ac);
+          }
+          break;
+        case E_MQ:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            mq = val;
+            printf("MQ = %o\n", mq);
+          }
+          break;
+        case E_SR:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            sr = val;
+            printf("SR = %o\n", sr);
+          }
+          break;
+        case E_DF:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            df = val;
+            printf("DF = %o\n", df);
+          }
+          break;
+        case E_IF:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 && val <= 3){
+            pc = ((val << 12 ) & FIELD_MASK) | (pc & B12_MASK);
+            printf("IF = %o\n", (pc & FIELD_MASK) >> 12);
+          } else {
+            printf("Syntax ERROR, IF can be between 0 and 03\n");
+          }
+          break;
+        case E_PC:
+          val = read_15bit_octal(_3rd_str);
+          if( val >= 0 ){
+            pc = val;
+            printf("PC = %o\n", pc);
+          }
+          break;
+        case OCTAL_LITERAL:
+          addr = read_15bit_octal(_2nd_str);
+          val = read_12bit_octal(_3rd_str);
+          if( addr >= 0 && val >= 0 ){
+            mem[addr] = val;
+            print_instruction(addr);
+          }
+          break;
+        default:
+          printf("Syntax ERROR, deposit to what?\n");
+        }
+        break;
+      case HELP:
+        printf("Run control commands:\n\n"
+               "    (b)reak    (r)un    (s)tep    (t)race\n\n"
+               "Memory control commands:\n\n"
+               "    (d)eposit    (e)xamine     (sa)ve    (re)store\n\n"
+               "Device specific:\n\n"
+               "    (tty_a)ttach   (tty_s)ource\n\n"
+               "Emulator control:\n\n"
+               "    (exit)\n\n"
+               "Type \"help command\" for details.\n\n");
+        // TODO help text for each command
+        break;
+      case RUN:
+        in_console = 0;
+        done = 1;
+        break;
+      case SAVE:
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
+        }
+
+        if( NULL_TOKEN != _2nd_tok ){
+          int do_save=0;
+          if(access(_2nd_str, F_OK) != -1){
+            printf("File exists, are you sure? [Y/N]\n");
+            char input;
+            while(read(0, &input, 1)==0){};
+            printf("%c\n",input);
+            if(input == 'Y' || input == 'y'){
+              do_save=1;
+            }
+          } else {
+            do_save=1;
+          }
+          if(do_save && save_state(_2nd_str)){
+            printf("CPU state saved\n");
+          }
+        } else {
+          to_few_args();
+        }
+        break;
+      case RESTORE:
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
+        }
+
+        if( NULL_TOKEN != _2nd_tok ){
+          if( ! restore_state(_2nd_str) ) {
+            printf("Unable to restore state, state unchanged\n");
+          } else {
+            printf("CPU state restored\n");
+          }
+        } else {
+          to_few_args();
+        }
+        break;
+      case STEP:
+        if( _2nd_tok != NULL_TOKEN ){
+          to_many_args();
+          break;
+        }
+
+        print_regs();
+        printf("\t\t");
+        print_instruction(pc);
+        in_console = 1;
+        done = 1;
+        break;
+      case TRACE:
+        if( _2nd_tok != NULL_TOKEN ){
+          to_many_args();
+          break;
+        }
+
+        trace_instruction = !trace_instruction;
+        if( trace_instruction ){
+          printf("Instruction trace ON\n");
+        } else {
+          printf("Instruction trace OFF\n");
+        }
+        break;
+      case TTY_ATTACH:
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
+        }
+
+        if( NULL_TOKEN != _2nd_tok ){
+          if( tty_read_from_file ){
+            printf("Unable to set new file name, tty_file currently open\n");
+          } else {
+            strncpy(tty_file, _2nd_str, strlen(_2nd_str)+1);
+          }
+        } else {
+          to_few_args();
+        }
+        break;
+      case TTY_SOURCE:
+        if( _2nd_tok != NULL_TOKEN ){
+          to_many_args();
+          break;
+        }
+
+        tty_read_from_file = ! tty_read_from_file;
+        if( tty_read_from_file ){
+          tty_fh = fopen(tty_file,"r");
+          if( tty_fh == NULL ){
+            tty_read_from_file = 0;
+            printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
+          } else {
+            printf("TTY input from file: \"%s\"\n", tty_file);
+          }
+        } else {
+          if( fclose(tty_fh) ){
+            printf("Unable to close tty_file\n");
+          }
+          printf("TTY input from keyboard\n");
+        }
+        break;
+      case NULL_TOKEN:
+        break;
+      default:
+        printf("Syntax ERROR, unknown command\n");
+        break;
       }
-      if(do_save && save_state(_2nd_str)){
-        printf("CPU state saved\n");
-      }
-    } else {
-      to_few_args();
     }
-    break;
-  case RESTORE:
-    if( NULL_TOKEN != _3rd_tok )
-      return to_many_args();
-
-    if( NULL_TOKEN != _2nd_tok ){
-      if( ! restore_state(_2nd_str) ) {
-        printf("Unable to restore state, state unchanged\n");
-      } else {
-        printf("CPU state restored\n");
-      }
-    } else {
-      to_few_args();
-    }
-    break;
-  case STEP:
-    if( _2nd_tok != NULL_TOKEN )
-      return to_many_args();
-
-    print_regs();
-    printf("\t\t");
-    print_instruction(pc);
-    in_console = 1;
-    // TODO done = 1;
-    break;
-  case TRACE:
-    if( _2nd_tok != NULL_TOKEN )
-      return to_many_args();
-
-    trace_instruction = !trace_instruction;
-    break;
-  case TTY_ATTACH:
-    if( NULL_TOKEN != _3rd_tok )
-      return to_many_args();
-
-    if( NULL_TOKEN != _2nd_tok ){
-      if( tty_read_from_file ){
-        printf("Unable to set new file name, tty_file currently open\n");
-      } else {
-        strncpy(tty_file, _2nd_str, strlen(_2nd_str)+1);
-      }
-    } else {
-      to_few_args();
-    }
-    break;
-  case TTY_SOURCE:
-    if( _2nd_tok != NULL_TOKEN )
-      return to_many_args();
-
-    tty_read_from_file = ! tty_read_from_file;
-    if( tty_read_from_file ){
-      tty_fh = fopen(tty_file,"r");
-      if( tty_fh == NULL ){
-        tty_read_from_file = 0;
-        printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
-      } else {
-        printf("TTY input from file: \"%s\"\n", tty_file);
-      }
-    } else {
-      if( fclose(tty_fh) ){
-        printf("Unable to close tty_file\n");
-      }
-      printf("TTY input from keyboard\n");
-    }
-    break;
-  case NULL_TOKEN:
-    break;
-  default:
-    printf("Syntax ERROR, unknown command\n");
-    break;
+    free(line);
   }
+
+  linenoiseHistorySave("history.txt");
+  return in_console;
 }
 
 
