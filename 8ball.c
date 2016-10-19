@@ -5,6 +5,7 @@
 #include <string.h>
 #include <signal.h>
 #include <getopt.h>
+#include <errno.h>
 #include "linenoise.h"
 
 #define LINENOISE_MAX_LINE 4096
@@ -1156,8 +1157,12 @@ char console()
   while(!done){
     line = linenoise(">> ");
     if( line == NULL ){
-      // A ctrl+c can get us here.
-      // TODO exit?! and/or verify signal?
+      if( errno == EAGAIN ){
+        // linenoise will set errno to EAGAIN if it reads ctrl+c
+        linenoiseHistorySave("history.txt");
+        printf("^C in console, exiting.\n");
+        exit(EXIT_FAILURE);
+      }
       continue;
     }
     if (line[0] != '\0' ) {
