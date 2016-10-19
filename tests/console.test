@@ -1,0 +1,230 @@
+##
+#  WARNING! Edit this file with an editor sensitive to CR+LF line
+#  endings!  The maindec tests emits CR+LF instead of just LF as some
+#  editors will assume.
+##
+
+# 1. Basic start en exit
+./8ball
+<<<
+exit
+>>>
+>>>=0
+
+# 2. Help text test
+./8ball
+<<<
+help
+exit
+>>>
+Run control commands:
+
+    (b)reak    (r)un    (s)tep    (t)race
+
+Memory control commands:
+
+    (d)eposit    (e)xamine     (sa)ve    (re)store
+
+Device specific:
+
+    (tty_a)ttach   (tty_s)ource
+
+Emulator control:
+
+    (exit)
+
+Type "help command" for details.
+
+>>>=0
+
+# 3. Examine test
+./8ball
+<<<
+e 07756 07757
+e pc
+e ac
+e mq
+e sr
+e ion
+e intr
+e ib
+e sf
+e df
+e if
+e inhib
+e uf
+e ub
+e tty
+exit
+>>>
+007756  006032 KCC
+007757  006031 KSF
+PC = 7756
+AC = 0
+MQ = 0
+SR = 7777
+ION = 0
+INTR = 0
+IB = 0
+SF = 0
+DF = 0
+IF = 0
+INHIB = 0
+UF = 0
+UB = 0
+TTY keyboard: buf = 0 flag = 0
+TTY printer:  buf = 0 flag = 0
+TTY DCR = 0
+>>>=0
+
+
+# 4. Deposit test
+./8ball
+<<<
+d 0 6032
+d pc 300
+d ac 7101
+d mq 1234
+d sr 2323
+d df 4
+d if 3
+exit
+>>>
+000000  006032 KCC
+PC = 300
+AC = 7101
+MQ = 1234
+SR = 2323
+DF = 4
+IF = 3
+>>>=0
+
+
+# 5. Show test
+./8ball
+<<<
+e cpu
+examine cpu
+exit
+>>>
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+>>>=0
+
+
+# 6. Breakpoint test
+./8ball
+<<<
+b 7757
+run
+exit
+>>>
+Breakpoint set at 7757
+ >>> BREAKPOINT HIT at 7757 <<<
+>>>=0
+
+
+# 7. Step test
+./8ball
+<<<
+step
+e pc
+exit
+>>>
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007756  006032 KCC
+PC = 7757
+>>>=0
+
+
+# 8. Trace test
+./8ball
+<<<
+break 7760
+trace
+run
+trace
+exit
+>>>
+Breakpoint set at 7760
+Instruction trace ON
+007756  006032 KCC
+007757  006031 KSF
+ >>> BREAKPOINT HIT at 7760 <<<
+Instruction trace OFF
+>>>=0
+
+
+# 9. Abbreviations test
+./8ball
+<<<
+step
+s
+break 07760
+b 07761
+run
+r
+examine 07760 07760
+e 07760
+exit
+>>>
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007756  006032 KCC
+PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007757  006031 KSF
+Breakpoint set at 7760
+Breakpoint set at 7761
+ >>> BREAKPOINT HIT at 7760 <<<
+ >>> BREAKPOINT HIT at 7760 <<<
+007760  005357 JMP 007757
+007760  005357 JMP 007757
+>>>=0
+
+# 10. Prepare Save test
+
+rm prev.core
+>>>=0
+
+# 11. Save test
+./8ball
+<<<
+d pc 1234
+save prev.core
+d pc 7756
+restore blarg.core
+e pc
+restore prev.core
+e pc
+exit
+>>>
+PC = 1234
+CPU state saved
+PC = 7756
+Unable to restore state, state unchanged
+PC = 7756
+CPU state restored
+PC = 1234
+>>>=0
+
+
+# 12. tty control test
+./8ball
+<<<
+tty_source
+tty_attach 8ball
+tty_source
+tty_attach 8ball
+tty_source
+tty_source
+tty_attach binloader.rim
+tty_source
+r
+examine cpu
+exit
+>>>
+TTY input from file: "binloader.rim"
+Unable to set new file name, tty_file currently open
+TTY input from keyboard
+TTY input from file: "8ball"
+TTY input from keyboard
+TTY input from file: "binloader.rim"
+Reached end of TTY file, dropping to console. Further reads will be from keyboard
+PC = 7760 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+>>>=0
