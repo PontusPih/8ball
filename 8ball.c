@@ -268,10 +268,12 @@ int main (int argc, char **argv)
     exit(EXIT_FAILURE);
   }
 
+  int tty_skip_count = 0;
   while(1){
 
     // TTY and console handling:
-    if( !tty_kb_flag ){
+    if( !tty_kb_flag && (tty_skip_count++ > 100)){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
+      tty_skip_count = 0;
       // If keyboard flag is not set, try to read one char.
       if( tty_read_from_file ){
         int byte = fgetc( tty_fh );
