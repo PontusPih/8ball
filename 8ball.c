@@ -8,8 +8,6 @@
 #include <errno.h>
 #include "linenoise.h"
 
-#define LINENOISE_MAX_LINE 4096
-
 #define MEMSIZE 0100000
 #define FIELD_MASK 070000
 #define PAGE_MASK 07600
@@ -1170,13 +1168,28 @@ char console()
     if (line[0] != '\0' ) {
       linenoiseHistoryAdd(line);
       
-      // TODO ignore insignificant whitespace.
-      char *skip_line = line;
-      while( *skip_line == ' ' ){
-        skip_line++;
+      char *token = strtok(line, " \t");
+
+      if( NULL == token ){
+        continue;
       }
-      
-      if( ! strncasecmp(skip_line, "s\0", 2) ){
+
+      // TODO make sure each successfully parsed command does a "continue".
+      // TODO make sure trailing garbage is treated as an error.
+      if( ! strncasecmp(token, "help\0", 5) ){
+        printf("Run control commands:\n\n"
+               "    (b)reak    (r)un    (s)tep    (t)race\n\n"
+               "Memory control commands:\n\n"
+               "    (d)eposit    (e)xamine     (sh)ow    (sa)ve    (re)store\n\n"
+               "Device specific:\n\n"
+               "    (tty_a)ttach   (tty_s)ource\n\n"
+               "Emulator control:\n\n"
+               "    (exit)\n\n"
+               "Type \"help command\" for details.\n\n");
+        // TODO help text for each command
+      }
+
+      if( ! strncasecmp(token, "s\0", 2) || !strncasecmp(token, "step\0", 5) ){
         print_regs();
         printf("\t\t");
         print_instruction(pc);
@@ -1184,110 +1197,263 @@ char console()
         done = 1;
       }
 
-      if( ! strncasecmp(skip_line, "r\0", 2) ){
+      if( ! strncasecmp(token, "r\0", 2) || ! strncasecmp(token, "run\0", 4) ){
         in_console = 0;
         done = 1;
       }
       
-      if( ! strncasecmp(skip_line, "show\0", 4) ){
+      if( ! strncasecmp(token, "sh\0", 2) || ! strncasecmp(token, "show\0", 5) ){
         print_regs();
         printf("\n");
       }
 
-      if( ! strncasecmp(skip_line, "d ", 2) ){
-        // deposit
-        skip_line += 2;
-        int addr = read_15bit_octal(skip_line);
-        while( *skip_line != ' ' ){
-          skip_line++;
+      if( ! strncasecmp(token, "e\0", 2) || ! strncasecmp(token, "examine\0", 8) ){
+        token = strtok(NULL, " \t");
+        if( NULL == token ){
+          continue;
+        }
+        // TODO add "cpu" instead of show
+        if( ! strncasecmp(token, "pc", 2) ){
+          printf("PC = %o\n", pc);
+          continue;
+        }
+        if( ! strncasecmp(token, "ac", 2) ){
+          printf("AC = %o\n", ac);
+          continue;
+        }
+        if( ! strncasecmp(token, "mq", 2) ){
+          printf("MQ = %o\n", mq);
+          continue;
+        }
+        if( ! strncasecmp(token, "sr", 2) ){
+          printf("SR = %o\n", sr);
+          continue;
+        }
+        if( ! strncasecmp(token, "ion", 3) ){
+          printf("ION = %o\n", ion);
+          continue;
+        }
+        if( ! strncasecmp(token, "intr", 4) ){
+          printf("INTR = %o\n", intr);
+          continue;
+        }
+        if( ! strncasecmp(token, "sf", 2) ){
+          printf("SF = %o\n", sf);
+          continue;
+        }
+        if( ! strncasecmp(token, "df", 2) ){
+          printf("DF = %o\n", df);
+          continue;
+        }
+        if( ! strncasecmp(token, "if", 2) ){
+          printf("IF = %o\n", (pc & IF_MASK) >> 12);
+          continue;
+        }
+        if( ! strncasecmp(token, "inhib", 2) ){
+          printf("INHIB = %o\n", intr_inhibit);
+          continue;
+        }
+        if( ! strncasecmp(token, "ib", 2) ){
+          printf("IB = %o\n", ib);
+          continue;
+        }
+        if( ! strncasecmp(token, "uf", 2) ){
+          printf("UF = %o\n", uf);
+          continue;
+        }
+        if( ! strncasecmp(token, "ub", 2) ){
+          printf("UB = %o\n", ub);
+          continue;
+        }
+        if( ! strncasecmp(token, "tty", 3) ){
+          printf("TTY keyboard: buf = %o flag = %d\n"
+                 "TTY printer:  buf = %o flag = %d\n"
+                 "TTY DCR = %o\n", tty_kb_buf, tty_kb_flag, tty_tp_buf, tty_tp_flag, tty_dcr);
+          continue;
         }
 
-        int val = read_12bit_octal(skip_line);
-        mem[addr] = val;
-      }
+        int start = read_15bit_octal(token);
+        int end = start;
 
-      if( ! strncasecmp(skip_line, "e ", 2) ){
-        skip_line += 2;
-        int start = read_15bit_octal(skip_line);
-        while( *skip_line != ' ' ){
-          skip_line++;
+        token = strtok(NULL, " \t");
+        if( NULL != token ){
+          end = read_15bit_octal(token);
         }
 
-        int end = read_15bit_octal(skip_line);
-        // TODO support examine single address (check for '\n')
+        if( start == -1 || end == -1 ){
+          continue;
+        }
+
         while( start <= end ){
           print_instruction(start);
           start++;
         }
+        continue;
       }
 
-      if( ! strncasecmp(skip_line, "b ", 2) ){
-        skip_line += 2;
-        int val = read_15bit_octal(skip_line);
+      if( ! strncasecmp(token, "b\0", 2) || !strncasecmp(token, "break\0", 6) ){
+        token = strtok(NULL, " \t");
+        int val = read_15bit_octal(token);
         if( val > 0 && val < MEMSIZE ){
           breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
+          if( breakpoints[val] ){
+            printf("Breakpoint set at %o\n", val);
+          } else {
+            printf("Breakpoint at %o cleared\n", val);
+          }
         }
       }
 
-      if( ! strncasecmp(skip_line, "trace", 5) ){
+      if( ! strncasecmp(token, "t\0", 2) || ! strncasecmp(token, "trace\0", 6) ){
+        // TODO printe trace status
         trace_instruction = !trace_instruction;
       }
 
-      if( ! strncasecmp(skip_line, "set ", 4) ){
-        skip_line += 4;
-        if( ! strncasecmp(skip_line, "pc=", 3) ){
-          skip_line += 3;
-          pc = read_15bit_octal(skip_line);
+      if( ! strncasecmp(token, "d\0", 2) || ! strncasecmp(token, "deposit\0", 8) ){
+        token = strtok(NULL, " \t");
+        if( NULL == token ){
+          // TODO error message
+          continue;
         }
 
-        if( ! strncasecmp(skip_line, "sr=", 3) ){
-          skip_line += 3;
-          sr = read_12bit_octal(skip_line);
-        }
-
-        if( ! strncasecmp(skip_line, "ac=", 3) ){
-          skip_line += 3;
-          ac = read_12bit_octal(skip_line);
-        }
-
-        if( ! strncasecmp(skip_line, "df=", 3) ){
-          skip_line += 3;
-          ac = read_12bit_octal(skip_line);
-        }
-
-        if( ! strncasecmp(skip_line, "tty_file=", 9) ){
-          if( tty_read_from_file ){
-            printf("Unable to set new file name, tty_file currently open\n");
-          } else {
-            skip_line += 9;
-            strncpy(tty_file, skip_line, 100);
+        if( ! strncasecmp(token, "pc\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
           }
+          short val = read_15bit_octal(token);
+          if( val > 0 ){
+            pc = val;
+            printf("PC = %o\n", pc);
+          }
+          continue;
         }
 
-        if( ! strncasecmp(skip_line, "tty_src", 7) ){
-          tty_read_from_file = ! tty_read_from_file;
-          if( tty_read_from_file ){
-            tty_fh = fopen(tty_file,"r");
-            if( tty_fh == NULL ){
-              tty_read_from_file = 0;
-              printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
-            } else {
-              printf("TTY input from file: \"%s\"\n", tty_file);
-            }
+        if( ! strncasecmp(token, "sr\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
+          }
+          short val = read_12bit_octal(token);
+          if( val > 0 ){
+            sr = val;
+            printf("SR = %o\n", sr);
+          }
+          continue;
+        }
+
+        if( ! strncasecmp(token, "ac\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
+          }
+          short val = read_12bit_octal(token);
+          if( val > 0 ){
+            ac = val;
+            printf("AC = %o\n", ac);
+          }
+          continue;
+        }
+
+        if( ! strncasecmp(token, "df\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
+          }
+          short val = read_12bit_octal(token);
+          if( val > 0 ){
+            df = val;
+            printf("DF = %o\n", df);
+          }
+          continue;
+        }
+
+        if( ! strncasecmp(token, "mq\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
+          }
+          short val = read_12bit_octal(token);
+          if( val > 0 ){
+            mq = val;
+            printf("MQ = %o\n", mq);
+          }
+          continue;
+        }
+
+        if( ! strncasecmp(token, "if\0", 3) ){
+          token = strtok(NULL, " \t");
+          if( NULL == token ){
+            // TODO error message
+            continue;
+          }
+          short val = read_12bit_octal(token);
+          if( val >= 0 ){
+            pc = ((val << 12 ) & FIELD_MASK) | (pc & B12_MASK);
+            printf("IF = %o\n", (pc & FIELD_MASK) >> 12);
+          }
+          continue;
+        }
+
+        short addr=-1, val=-1;
+        if( NULL != token ){
+          addr = read_15bit_octal(token);
+        }
+
+        token = strtok(NULL, " \t");
+        if( NULL != token ){
+          val = read_12bit_octal(token);
+        }
+
+        if( addr >= 0 && val >= 0 ){
+          mem[addr] = val;
+          print_instruction(addr);
+        }
+        continue;
+      }
+
+      if( ! strncasecmp(token, "tty_a\0", 6) || ! strncasecmp(token, "tty_attach\0", 11) ){
+        if( tty_read_from_file ){
+          printf("Unable to set new file name, tty_file currently open\n");
+        } else {
+          token = strtok(NULL, " \t");
+          if( NULL != token ){
+            strncpy(tty_file, token, 100);
+            continue;
           } else {
-            if( fclose(tty_fh) ){
-              printf("Unable to close tty_file\n");
-            }
-            printf("TTY input from keyboard\n");
+            // TODO error
           }
         }
       }
+
+      if( ! strncasecmp(token, "tty_s\0", 6) || ! strncasecmp(token, "tty_source\0", 11) ){
+        tty_read_from_file = ! tty_read_from_file;
+        if( tty_read_from_file ){
+          tty_fh = fopen(tty_file,"r");
+          if( tty_fh == NULL ){
+            tty_read_from_file = 0;
+            printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
+          } else {
+            printf("TTY input from file: \"%s\"\n", tty_file);
+          }
+        } else {
+          if( fclose(tty_fh) ){
+            printf("Unable to close tty_file\n");
+          }
+          printf("TTY input from keyboard\n");
+        }
+      }
         
-      if( ! strncasecmp(skip_line, "save=", 5) ){
-        skip_line += 5;
-        if(strnlen(skip_line, LINENOISE_MAX_LINE-5) > 0){
+      if( ! strncasecmp(token, "sa\0", 3) || ! strncasecmp(token, "save\0", 5) ){
+        token = strtok(NULL, " \t");
+        if( NULL != token ){
           int do_save=0;
-          if(access(skip_line,F_OK) != -1){
+          if(access(token,F_OK) != -1){
             printf("File exists, are you sure? [Y/N]\n");
             char input;
             while(read(0, &input, 1)==0){};
@@ -1298,19 +1464,23 @@ char console()
           } else {
             do_save=1;
           }
-          if(do_save && save_state(skip_line)){
+          if(do_save && save_state(token)){
             printf("CPU state saved\n");
           }
         }
+        continue;
       }
 
-      if( ! strncasecmp(skip_line, "restore=", 8) ){
-        skip_line += 8;
-        if(strnlen(skip_line, LINENOISE_MAX_LINE-5) > 0){
-          if( ! restore_state(skip_line) ) {
+      if( !strncasecmp(token, "re\0", 3) || ! strncasecmp(token, "restore\0", 8) ){
+        token = strtok(NULL, " \t");
+        if( NULL != token ){
+          if( ! restore_state(token) ) {
             printf("Unable to restore state, state unchanged\n");
+          } else {
+            printf("CPU state restored\n");
           }
         }
+        continue;
       }
 
       if( ! strncasecmp(skip_line, "quit\0", 5) || ! strncasecmp(skip_line, "exit\0", 5) ){
