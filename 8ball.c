@@ -118,7 +118,7 @@ void tty_reset(){
   tty_kb_flag = 0;
   tty_tp_buf = 0;
   tty_tp_flag = 0;
-  tty_dcr = 0;
+  tty_dcr = TTY_IE_MASK;
 }
 
 char tty_file[100] = "binloader.rim";
@@ -230,6 +230,7 @@ int main (int argc, char **argv)
 {
   memset(mem, 0, sizeof(mem));
   memset(breakpoints, 0, sizeof(breakpoints));
+  tty_reset();
 #include "rimloader.h"
   pc = 07756;
 
@@ -465,7 +466,6 @@ int main (int argc, char **argv)
         case CAF:
           // TODO reset supported devices. Reset MMU interrupt inhibit flipflop
           tty_reset();
-          tty_dcr = TTY_IE_MASK;
           ac = ion = intr = 0;
           break;
         }
@@ -475,6 +475,7 @@ int main (int argc, char **argv)
         switch( cur & IOT_OP_MASK ){
         case KCF:
           tty_kb_flag = 0;
+          intr = intr & ~TTY_INTR_FLAG;
           break;
         case KSF:
           if( tty_kb_flag ){
@@ -483,6 +484,7 @@ int main (int argc, char **argv)
           break;
         case KCC:
           tty_kb_flag = 0;
+          intr = intr & ~TTY_INTR_FLAG;
           ac &= LINK_MASK;
           break;
         case KRS:
@@ -493,6 +495,7 @@ int main (int argc, char **argv)
           break;
         case KRB:
           tty_kb_flag = 0;
+          intr = intr & ~TTY_INTR_FLAG;
           ac &= LINK_MASK;
           ac |= (tty_kb_buf & B8_MASK);
           break;

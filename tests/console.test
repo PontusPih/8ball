@@ -74,7 +74,7 @@ UF = 0
 UB = 0
 TTY keyboard: buf = 0 flag = 0
 TTY printer:  buf = 0 flag = 0
-TTY DCR = 0
+TTY DCR = 1
 >>>=0
 
 
