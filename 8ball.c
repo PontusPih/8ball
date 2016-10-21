@@ -29,7 +29,6 @@
 #define BREAKPOINT 0100000
 
 #define INSTR(x) ((x)<<9)
-// TODO use INC_12BIT in more places
 #define INC_12BIT(x) (((x)+1) & B12_MASK)
 #define INC_PC(x) (((x) & FIELD_MASK) | INC_12BIT((x)));
 
@@ -220,7 +219,7 @@ short operand_addr(short pc, char examine)
         &&
         ! examine ){
       // autoindex addressing
-      mem[addr] = (mem[addr]+1) & B12_MASK;
+      mem[addr] = INC_12BIT(mem[addr]);
     }
     addr = (addr & FIELD_MASK) | (mem[addr] & B12_MASK);
   }
@@ -410,7 +409,7 @@ int main (int argc, char **argv)
       }
       // Jump and store return address.
       mem[addr] = (pc & B12_MASK);
-      pc = (pc & FIELD_MASK) | ((addr + 1) & B12_MASK);
+      pc = (pc & FIELD_MASK) | INC_12BIT(addr);
       break;
     case JMP:
       if( intr_inhibit ){
