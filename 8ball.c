@@ -312,8 +312,6 @@ int main (int argc, char **argv)
 
     if( breakpoints[pc] & BREAKPOINT ){
       printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
-      // TODO add "clear all" breakpoints
-      // TODO add "list" breakpoints
       in_console = 1;
     }
 
@@ -1159,6 +1157,8 @@ short read_15bit_octal(const char *buf)
 typedef enum {
   BAD_TOKEN = -2,
   NULL_TOKEN,
+  CLEAR,
+  LIST,
   BREAK,
   EXAMINE,
   EXIT,
@@ -1194,6 +1194,10 @@ token map_token(char *token)
   if( NULL == token )
     return NULL_TOKEN;
 
+  if( ! strcasecmp(token, "list") || ! strcasecmp(token, "l") )
+    return LIST;
+  if( ! strcasecmp(token, "clear") || ! strcasecmp(token, "c") )
+    return CLEAR;
   if( ! strcasecmp(token, "break") || ! strcasecmp(token, "b") )
     return BREAK;
   if( ! strcasecmp(token, "examine") || ! strcasecmp(token, "e") )
@@ -1309,6 +1313,27 @@ char console()
         }
         if( NULL_TOKEN == _2nd_tok ){
           to_few_args();
+          break;
+        }
+
+        if( CLEAR == _2nd_tok ) {
+          memset(breakpoints, 0, sizeof(breakpoints));
+          printf("Breakpoints cleared\n");
+          break;
+        }
+
+        if( LIST == _2nd_tok ){
+          for(int i = 0; i < MEMSIZE; i++) {
+            // TODO add tests
+            if( breakpoints[i] ){
+              printf("Breakpoint set at %o\n", i);
+            }
+          }
+          break;
+        }
+
+        if( OCTAL_LITERAL != _2nd_tok ){
+          printf("Syntax ERROR, break argument can be 'list', 'clear' or octal value\n");
           break;
         }
 
