@@ -179,3 +179,51 @@ which got incremented and became something else.
 
 After fixing this, lots of test failed in my own test suite due to the
 post test memory state changed for addresses between 010 and 017 :)
+
+Update 21-OCT-2016
+
+Theres been some time since I had time to work properly on the
+emulator. I decided after the battle with memory management and time
+share that it was time to tidy up the code and get some of the TODOs
+I'd left behind done.
+
+Most was small things related to how the console was handled. Console
+command history is now saved between sessions. The IF can now be set
+from the console. Ctrl+C when in the console quits the
+emulator. Breakpoints can be listed and deleted all at once.
+
+Since I have been using simh a bit I felt the need to improve my
+console a bit so I've completely rewritten the command line parser to
+make it easier to understand and extend. A bonus was that error
+handling became easier and the user now gets somewhat helpful error
+messages. Added unit tests for the console.
+
+Yesterday I visited Update for the monthly "sweatshop" where we gather
+and work on whatever project we have. It's also an oportunity to show
+of. Since I knew some would be interrested in my emulator I decided to
+search for a good demo. I recently stumbled upon Jean-Claude Wipplers
+embedded emulator [5] and he showed a nice little FOCAL demo so I
+decided on that.
+
+However, running FOCAL resulted in a prompt and interrupt loop. It did
+not respond to input at all. After an hour or so of debugging I
+realized that the emulator didn't clear the interrupt request when the
+tty keyboard flag is cleared. I'm quite surprised no MAINDEC caught
+this, on the other hand non of them are interactive. There are still
+some issues with the TTY emulation that I'm trying to iron out, for
+instance the keyboard and printer probably need separate interrupt
+flags.
+
+But I got FOCAL running and gave a nice demo. While at Update I
+flipped through a paper copy of an earlier version of "The Small
+Computer Handbook" which describes the 8/i and 8/l. And I must say it
+had a much clearer and detailed description of the instruction
+set. Sadly the /i and /l doesn't implement the GTF, RTF, and CAF that
+I've had troubles with. I will however crossreference with this book
+when I implement EAE and other peripherals.
+
+[1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
+[2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
+[3] http://www.ultimate.com/phil/xy/
+[4] http://homepage.cs.uiowa.edu/~jones/pdp8/emulator.txt.Z
+[5] http://jeelabs.org/2016/10/stm32f103-emulating-a-pdp-8/
