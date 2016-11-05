@@ -17,23 +17,24 @@ exit
 help
 exit
 >>>
-Run control commands:
+
+  Run control commands:
 
     (b)reak    (r)un    (s)tep    (t)race
 
-Memory control commands:
+  Memory control commands:
 
     (d)eposit    (e)xamine     (sa)ve    (re)store
 
-Device specific:
+  Device specific:
 
     (tty_a)ttach   (tty_s)ource
 
-Emulator control:
+  Emulator control:
 
     (exit)
 
-Type "help command" for details.
+  Type "help <command>" for details.
 
 >>>=0
 

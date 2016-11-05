@@ -1521,16 +1521,82 @@ char console()
         }
         break;
       case HELP:
-        printf("Run control commands:\n\n"
-               "    (b)reak    (r)un    (s)tep    (t)race\n\n"
-               "Memory control commands:\n\n"
-               "    (d)eposit    (e)xamine     (sa)ve    (re)store\n\n"
-               "Device specific:\n\n"
-               "    (tty_a)ttach   (tty_s)ource\n\n"
-               "Emulator control:\n\n"
-               "    (exit)\n\n"
-               "Type \"help command\" for details.\n\n");
-        // TODO help text for each command
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
+        }
+        switch(_2nd_tok) {
+        case BREAK:
+          printf("\n  Set breakpoint at memory address\n\n"
+                 "  break <octal value>\n\n"
+
+                 "    Set or unset breakpoint add given address, the CPU will halt when\n"
+                 "    the PC reaches an address with set breakpoint.\n\n"
+
+                 "  break list\n\n"
+
+                 "    List addresses of all set breakpoints.\n\n"
+
+                 "  break clear\n\n"
+
+                 "    Unset ALL breakpoints.\n\n");
+          break;
+        case RUN:
+          printf("\n  Start CPU execution.\n\n"
+
+                 "  run\n\n"
+
+                 "    Execution is started at current PC. Input is directed at TTY.\n\n");
+          break;
+        case STEP:
+          printf("\n  Execute one instruction.\n\n"
+
+                 "  step\n\n"
+
+                 "    print contents of CPU registers prior to executing the next\n"
+                 "    instruction then print the instruction at PC. Interrupts are\n"
+                 "    checked after the next instruction is printed so you might not know\n"
+                 "    what was executed.\n\n");
+          break;
+        case TRACE:
+          printf("\n  Print instruction trace\n\n"
+
+                 "  trace\n\n"
+
+                 "    Turn trace ON or OFF. When ON, each executed instruction is printed.\n\n");
+          break;
+        case DEPOSIT:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case EXAMINE:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case SAVE:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case RESTORE:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case TTY_ATTACH:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case TTY_SOURCE:
+          printf("\n  No help yet :(\n\n");
+          break;
+        case NULL_TOKEN:
+        default:
+          printf("\n  Run control commands:\n\n"
+                 "    (b)reak    (r)un    (s)tep    (t)race\n\n"
+                 "  Memory control commands:\n\n"
+                 "    (d)eposit    (e)xamine     (sa)ve    (re)store\n\n"
+                 "  Device specific:\n\n"
+                 "    (tty_a)ttach   (tty_s)ource\n\n"
+                 "  Emulator control:\n\n"
+                 "    (exit)\n\n"
+                 "  Type \"help <command>\" for details.\n\n");
+          // TODO help text for each command
+          break;
+        }
         break;
       case RUN:
         in_console = 0;
