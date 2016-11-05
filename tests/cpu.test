@@ -5,7 +5,7 @@
 ##
 
 # 1. CPU Test round 1
-./8ball --restore tests/maindec-8e-d0ab-pb.core --exit_on_HLT --run --stop_at 2764
+./8ball --restore tests/maindec-8e-d0ab-pb.core --exit_on_HLT --run --stop_at 05314
 >>>
 
  >>> STOP AT <<<
@@ -16,7 +16,7 @@ diff prev.core tests/maindec-8e-d0ab-pb.prev.core
 >>>=0
 
 # 3. CPU Test round 2
-./8ball --restore tests/maindec-8e-d0bb-pb.core --exit_on_HLT --run --stop_at 2021
+./8ball --restore tests/maindec-8e-d0bb-pb.core --exit_on_HLT --run --stop_at 03745
 >>>
 
  >>> STOP AT <<<
@@ -27,7 +27,7 @@ diff prev.core tests/maindec-8e-d0bb-pb.prev.core
 >>>=0
 
 # 5. RANDOM ADD TEST. Location 0170 set to 7776 and SR=0400
-./8ball --restore tests/maindec-8e-d0cc-pb.core --exit_on_HLT --run --stop_at 2404
+./8ball --restore tests/maindec-8e-d0cc-pb.core --exit_on_HLT --run --stop_at 04544
 >>>
 
 SIMAD
@@ -79,7 +79,7 @@ diff prev.core tests/maindec-8e-d0db-pb.prev3.core
 >>>=0
 
 # 13. RANDOM TAD TEST
-./8ball --restore tests/maindec-8e-d0eb-pb.core --run --stop_at=3888
+./8ball --restore tests/maindec-8e-d0eb-pb.core --run --stop_at=07460
 >>>
 
 T
@@ -91,7 +91,7 @@ diff prev.core tests/maindec-8e-d0eb-pb.prev.core
 >>>=0
 
 # 15. RANDOM ISZ TEST
-./8ball --restore tests/maindec-8e-d0fc-pb.core --run --stop_at=3985
+./8ball --restore tests/maindec-8e-d0fc-pb.core --run --stop_at=7621
 >>>
 
 FC
