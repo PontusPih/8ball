@@ -810,7 +810,7 @@ void print_instruction(short pc)
   short cur = *(mem + pc);
   short addr = operand_addr(pc, 1);
 
-  printf("%.6o  %.6o", pc, cur);
+  printf("%.5o  %.4o", pc, cur);
 
   if( (cur & IF_MASK) <= JMP ){
     switch( cur & IF_MASK ){

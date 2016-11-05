@@ -57,8 +57,8 @@ e ub
 e tty
 exit
 >>>
-007756  006032 KCC
-007757  006031 KSF
+07756  6032 KCC
+07757  6031 KSF
 PC = 7756
 AC = 0
 MQ = 0
@@ -90,7 +90,7 @@ d df 4
 d if 3
 exit
 >>>
-000000  006032 KCC
+00000  6032 KCC
 PC = 300
 AC = 7101
 MQ = 1234
@@ -131,7 +131,7 @@ step
 e pc
 exit
 >>>
-PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007756  006032 KCC
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		07756  6032 KCC
 PC = 7757
 >>>=0
 
@@ -147,8 +147,8 @@ exit
 >>>
 Breakpoint set at 7760
 Instruction trace ON
-007756  006032 KCC
-007757  006031 KSF
+07756  6032 KCC
+07757  6031 KSF
  >>> BREAKPOINT HIT at 7760 <<<
 Instruction trace OFF
 >>>=0
@@ -167,14 +167,14 @@ examine 07760 07760
 e 07760
 exit
 >>>
-PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007756  006032 KCC
-PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		007757  006031 KSF
+PC = 7756 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		07756  6032 KCC
+PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0		07757  6031 KSF
 Breakpoint set at 7760
 Breakpoint set at 7761
  >>> BREAKPOINT HIT at 7760 <<<
  >>> BREAKPOINT HIT at 7760 <<<
-007760  005357 JMP 007757
-007760  005357 JMP 007757
+07760  5357 JMP     07757
+07760  5357 JMP     07757
 >>>=0
 
 # 10. Prepare Save test
