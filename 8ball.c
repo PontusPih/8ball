@@ -833,20 +833,23 @@ void print_instruction(short pc)
       printf(" JMP");
       break;
     }
-    // TODO print value of memory cell referenced.
+
     if( ! (cur & Z_MASK) ) {
-      if( cur & I_MASK ){
-        printf(" I Z %.6o (%.6o)", direct_addr(pc), addr);
-      } else {
-        printf(" Z %.6o", addr);
-      }
+      printf(" Z");
     } else {
-      if( cur & I_MASK ){
-        printf(" I %.6o (%.6o)", direct_addr(pc), addr);
-      } else {
-        printf(" %.6o", addr);
-      }
+      printf("  ");
     }
+
+    if( cur & I_MASK ){
+      printf(" I %.5o (%.5o)", direct_addr(pc), addr);
+    } else {
+      printf("   %.5o", addr);
+    }
+
+    if( (cur & IF_MASK) < JMS ){
+      printf(" [%.4o]", mem[addr]);
+    }
+
   } else {
     switch( cur & IF_MASK ){
     case IOT:
