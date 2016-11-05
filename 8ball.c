@@ -253,7 +253,9 @@ int main (int argc, char **argv)
   
   tcgetattr(0,&told);
   tnew = told;
-  tnew.c_lflag &= ~(ICANON|ECHO);
+  tnew.c_lflag &= ~(ICANON|ECHO); // NON-canonical mode and no ECHO of input
+  tnew.c_iflag &= ~(ICRNL); // Don't convert CR to NL
+  tnew.c_iflag |= ISTRIP; // Strip bit eight
   tnew.c_cc[VMIN] = 0; // Allow read() to return without data.
   tnew.c_cc[VTIME] = 0; // And block for 0 tenths of a second.
   tcsetattr(0, TCSANOW, &tnew);
@@ -284,9 +286,10 @@ int main (int argc, char **argv)
           in_console = 1;
         }
       } else {
-        char input;
+        unsigned char input;
         if( read(0, &input, 1) > 0 ){
-          tty_kb_buf = input;
+          // ISTRIP removes bit eight, but other terminals might not.
+          tty_kb_buf = (input & B7_MASK);
           tty_kb_flag = 1;
           if( tty_dcr & TTY_IE_MASK ){
             intr |= TTY_INTR_FLAG;
