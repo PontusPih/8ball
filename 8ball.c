@@ -442,7 +442,7 @@ int main (int argc, char **argv)
         case GTF:
           // TODO add more fields as support is added. (GT)
           ac = (ac & LINK_MASK) | // preserve LINK
-               (LINK << 11) | ((intr & UINTR_FLAG ? 1:0) << 6) | ((intr ? 1:0) << 9) | (ion << 7) | sf;
+               (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | ((intr & UINTR_FLAG ? 1:0) << 6) | sf;
           break;
         case RTF:
           // RTF allways sets ION irregardles of the ION bit in AC.
@@ -452,7 +452,7 @@ int main (int argc, char **argv)
           ib = (ac & 070) >> 3;
           df = ac & 07;
           ub = (ac & 0100) >> 6;
-          // TODO restore more fields. (GT, and U);
+          // TODO restore more fields. (GT);
           break;
         case SGT:
           // TODO add with EAE support
@@ -500,6 +500,7 @@ int main (int argc, char **argv)
         }
         break;
       case 04: // Console tty output
+        // TODO separate interrupt flag for TTO if nonblocking output
         switch( cur & IOT_OP_MASK ){
         case TFL:
           tty_tp_flag = 1;
@@ -616,6 +617,11 @@ int main (int argc, char **argv)
         break;
       default:
         printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
+        // DEV 01 High speed paper tape reader
+        // DEV 02 High speed paper tape punch
+        // DEV 10
+        // 01 and 04 -> MP8, memory parity
+        // 02 -> KP8, pwr fail & restart
         break;
         // in_console = 1;
       }
@@ -1088,7 +1094,6 @@ void print_instruction(short pc)
 
           if( cur & OSR ){
             printf(" OSR");
-            // TODO print more detail.
           }
           if( cur & HLT ){
             printf(" HLT");
@@ -1649,7 +1654,7 @@ char console()
           to_many_args();
           break;
         }
-
+        // TODO figure out how print useful information.
         print_regs();
         printf("\t\t");
         print_instruction(pc);
