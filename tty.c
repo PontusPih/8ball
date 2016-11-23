@@ -21,10 +21,14 @@ void tty_process(){
   // TTY and console handling:
   // If keyboard flag is not set, try to read one char.
   if( !tty_kb_flag ) {
-    tty_kb_buf = read_tty_byte();
-    tty_kb_flag = 1;
-    if( tty_dcr & TTY_IE_MASK ){
-      cpu_raise_interrupt(TTY_INTR_FLAG);
+    char input, res;
+    res = read_tty_byte(&input);
+    if( res ) {
+      tty_kb_buf = input;
+      tty_kb_flag = 1;
+      if( tty_dcr & TTY_IE_MASK ){
+        cpu_raise_interrupt(TTY_INTR_FLAG);
+      }
     }
   }
 }

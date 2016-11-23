@@ -39,8 +39,7 @@ char tty_file[100] = "binloader.rim";
 char tty_read_from_file = 0;
 FILE *tty_fh = NULL;
 
-// TODO return input in output variable. Return fail och success
-char read_tty_byte()
+char read_tty_byte(char *output)
 {
   if( tty_read_from_file ){
     int byte = fgetc( tty_fh );
@@ -50,13 +49,19 @@ char read_tty_byte()
       fclose( tty_fh );
       tty_read_from_file = 0;
       in_console = 1;
+      return 0;
+    } else {
+      *output = byte;
+      return 1;
     }
-    return byte;
   } else {
     unsigned char input;
     if( read(0, &input, 1) > 0 ){
       // ISTRIP removes bit eight, but other terminals might not.
-      return input & B7_MASK;
+      *output = input & B7_MASK;
+      return 1;
+    } else {
+      return 0;
     }
   }
 }
