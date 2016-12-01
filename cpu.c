@@ -29,13 +29,18 @@ short breakpoints[MEMSIZE];
 extern char in_console;
 extern char exit_on_HLT;
 
-void cpu_init(){
+void cpu_init(void){
   int i;
   for( i=0 ; i<MEMSIZE; i++){
     mem[i] = 0;
     breakpoints[i] = 0;
   }
 }
+
+/*int write(int fd, const void *buf, int count)
+{
+  return 0;
+  }*/
 
 short direct_addr(short pc)
 {
@@ -294,7 +299,7 @@ int cpu_process()
         break;
       case TPC:
         tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
-        // write(1, &tty_tp_buf, 1);
+        write(1, &tty_tp_buf, 1);
         // TODO nonblocking output?
         tty_tp_flag = 1;
         if( tty_dcr & TTY_IE_MASK ){
@@ -309,7 +314,7 @@ int cpu_process()
       case TLS:
         tty_tp_flag = 0;
         tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
-        // write(1, &tty_tp_buf, 1);
+        write(1, &tty_tp_buf, 1);
         // TODO nonblocking output?
         tty_tp_flag = 1;
         if( tty_dcr & TTY_IE_MASK ){

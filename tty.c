@@ -1,6 +1,6 @@
 #include "tty.h"
 #include "cpu.h"
-#include "8ball.h"
+#include "console.h"
 
 // TTY registers
 short tty_kb_buf = 0;

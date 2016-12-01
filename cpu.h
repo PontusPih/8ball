@@ -26,12 +26,12 @@ extern short rtf_delay; //ion will be set after next fetch
 extern short mem[];
 extern short breakpoints[];
 
-int cpu_process();
+int cpu_process(void);
 short direct_addr(short pc);
 short operand_addr(short pc, char examine);
 void cpu_raise_interrupt(short flag);
 
-#define MEMSIZE 0100000
+#define MEMSIZE 0100000 // MAX 0100000
 #define FIELD_MASK 070000
 #define PAGE_MASK 07600
 #define WORD_MASK 0177
