@@ -249,7 +249,7 @@ int cpu_process()
       switch( cur & IOT_OP_MASK ){
       case KCF:
         tty_kb_flag = 0;
-        intr = intr & ~TTY_INTR_FLAG;
+        intr = intr & ~TTYI_INTR_FLAG;
         break;
       case KSF:
         if( tty_kb_flag ){
@@ -258,7 +258,7 @@ int cpu_process()
         break;
       case KCC:
         tty_kb_flag = 0;
-        intr = intr & ~TTY_INTR_FLAG;
+        intr = intr & ~TTYI_INTR_FLAG;
         ac &= LINK_MASK;
         break;
       case KRS:
@@ -269,7 +269,7 @@ int cpu_process()
         break;
       case KRB:
         tty_kb_flag = 0;
-        intr = intr & ~TTY_INTR_FLAG;
+        intr = intr & ~TTYI_INTR_FLAG;
         ac &= LINK_MASK;
         ac |= (tty_kb_buf & B8_MASK);
         break;
@@ -280,12 +280,11 @@ int cpu_process()
       }
       break;
     case 04: // Console tty output
-      // TODO separate interrupt flag for TTO if nonblocking output
       switch( cur & IOT_OP_MASK ){
       case TFL:
         tty_tp_flag = 1;
         if( tty_dcr & TTY_IE_MASK ){
-          intr |= TTY_INTR_FLAG;
+          intr |= TTYO_INTR_FLAG;
         }
         break;
       case TSF:
@@ -295,16 +294,11 @@ int cpu_process()
         break;
       case TCF:
         tty_tp_flag = 0;
-        intr &= ~TTY_INTR_FLAG;
+        intr &= ~TTYO_INTR_FLAG;
         break;
       case TPC:
         tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
-        write(1, &tty_tp_buf, 1);
-        // TODO nonblocking output?
-        tty_tp_flag = 1;
-        if( tty_dcr & TTY_IE_MASK ){
-          intr |= TTY_INTR_FLAG;
-        }
+        tty_initiate_output();
         break;
       case TSK:
         if( tty_tp_flag || tty_kb_flag ){
@@ -312,14 +306,10 @@ int cpu_process()
         }
         break;
       case TLS:
-        tty_tp_flag = 0;
         tty_tp_buf = (ac & B7_MASK); // emulate ASR with 7M1
-        write(1, &tty_tp_buf, 1);
-        // TODO nonblocking output?
-        tty_tp_flag = 1;
-        if( tty_dcr & TTY_IE_MASK ){
-          intr |= TTY_INTR_FLAG;
-        }
+        tty_initiate_output();
+        tty_tp_flag = 0;
+        intr &= ~TTYO_INTR_FLAG;
         break;
       default:
         //printf("illegal IOT instruction. device 04 - TTY output\n");

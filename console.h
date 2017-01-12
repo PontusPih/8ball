@@ -5,6 +5,7 @@ void console_setup(int argc, char **argv);
 void console_stop_break(void);
 void console_trace_instruction(void);
 char read_tty_byte(char *output);
+void write_tty_byte(char output);
 
 #ifdef HOST_BUILD
 extern char in_console;

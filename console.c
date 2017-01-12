@@ -447,6 +447,10 @@ char read_tty_byte(char *output)
   }
 }
 
+void write_tty_byte(char output){
+  write(1, &output, 1);
+}
+
 void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unused)) linenoiseCompletions *lc){
 
 }

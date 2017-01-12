@@ -56,8 +56,9 @@ void cpu_raise_interrupt(short flag);
 #define INC_PC(x) (((x) & FIELD_MASK) | INC_12BIT((x)));
 #define INTR(x) (1 << (x))
 
-#define TTY_INTR_FLAG INTR(0)
-#define UINTR_FLAG INTR(1)
+#define TTYO_INTR_FLAG INTR(0)
+#define TTYI_INTR_FLAG INTR(1)
+#define UINTR_FLAG INTR(2)
 
 #define AND INSTR(0)
 #define TAD INSTR(1)

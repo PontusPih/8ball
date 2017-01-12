@@ -9,6 +9,14 @@ short tty_tp_buf = 0;
 short tty_tp_flag = 0;
 short tty_dcr = 0; // device control register
 
+// TTY internals
+char output_pending = 0;
+
+void tty_initiate_output()
+{
+  output_pending = 1;
+}
+
 void tty_reset(){
   tty_kb_buf = 0;
   tty_kb_flag = 0;
@@ -27,8 +35,18 @@ void tty_process(){
       tty_kb_buf = input;
       tty_kb_flag = 1;
       if( tty_dcr & TTY_IE_MASK ){
-        cpu_raise_interrupt(TTY_INTR_FLAG);
+        cpu_raise_interrupt(TTYI_INTR_FLAG);
       }
+    }
+  }
+
+  // If output teleprinter buffer if requested.
+  if( output_pending ){
+    output_pending = 0;
+    write_tty_byte(tty_tp_buf);
+    tty_tp_flag = 1;
+    if( tty_dcr & TTY_IE_MASK ){
+      cpu_raise_interrupt(TTYO_INTR_FLAG);
     }
   }
 }

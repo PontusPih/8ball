@@ -13,5 +13,6 @@ extern short tty_dcr; // device control register
 
 void tty_reset(void);
 void tty_process(void);
+void tty_initiate_output();
 
 #endif // _TTY_H_
