@@ -26,6 +26,7 @@ extern short rtf_delay; //ion will be set after next fetch
 extern short mem[];
 extern short breakpoints[];
 
+void cpu_init(void);
 int cpu_process(void);
 short direct_addr(short pc);
 short operand_addr(short pc, char examine);

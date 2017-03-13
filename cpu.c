@@ -26,21 +26,16 @@ short rtf_delay = 0; //ion will be set after next fetch
 short mem[MEMSIZE];
 short breakpoints[MEMSIZE];
 
-extern char in_console;
-extern char exit_on_HLT;
-
 void cpu_init(void){
   int i;
   for( i=0 ; i<MEMSIZE; i++){
     mem[i] = 0;
     breakpoints[i] = 0;
   }
+#include "rimloader.h"
+  pc = 07756;
 }
 
-/*int write(int fd, const void *buf, int count)
-{
-  return 0;
-  }*/
 
 short direct_addr(short pc)
 {
@@ -111,10 +106,6 @@ int cpu_process()
 
   if( ion && intr && (! intr_inhibit) ){
     // An interrupt occured, disable interrupts, force JMS to 0000
-    // TODO restore
-    //if( trace_instruction ){
-    //  printf("%.6o  %.6o INTERRUPT ==> JMS to 0", pc, cur);
-    //}
     cur = JMS;
     addr = 0;
     ion = 0;
@@ -124,10 +115,6 @@ int cpu_process()
     df = ib = 0;
     uf = ub = 0;
   } else {
-    // TODO
-    // if( trace_instruction ){
-    //  print_instruction(pc);
-    //}
     // Don't increment PC in case of an interrupt. An interrupt
     // actually occurs at the end of an execution cycle, before
     // the next fetch cycle.
@@ -274,8 +261,8 @@ int cpu_process()
         ac |= (tty_kb_buf & B8_MASK);
         break;
       default:
+        // TODO optionally go to console
         //printf("illegal IOT instruction. device 03 - keyboard\n");
-        in_console = 1;
         break;
       }
       break;
@@ -312,8 +299,8 @@ int cpu_process()
         intr &= ~TTYO_INTR_FLAG;
         break;
       default:
+        // TODO optionally go to console
         //printf("illegal IOT instruction. device 04 - TTY output\n");
-        in_console = 1;
         break;
       }
       break;
@@ -376,16 +363,19 @@ int cpu_process()
           intr_inhibit = 1;
           break;
         default:
+          // TODO optionally go to console
           //printf("IOT unsupported memory management instruction(04): NOP\n");
           break;
         }
         break;
       default:
+        // TODO optionally go to console
         //printf("IOT unsupported memory management instruction: NOP\n");
         break;
       }
       break;
     default:
+      // TODO optionally go to console
       //printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
       // DEV 01 High speed paper tape reader
       // DEV 02 High speed paper tape punch
@@ -393,7 +383,6 @@ int cpu_process()
       // 01 and 04 -> MP8, memory parity
       // 02 -> KP8, pwr fail & restart
       break;
-      // in_console = 1;
     }
     break;
   case OPR:
@@ -541,13 +530,7 @@ int cpu_process()
           ac |= sr;
         }
         if( cur & HLT ){
-          in_console = 1;
-          //printf(" >>> CPU HALTED <<<\n");
-          //print_regs();
-          //printf("\n");
-          if( exit_on_HLT ){
-            return -1;
-          }
+          return -1;
         }
       } else {
         // Group Three

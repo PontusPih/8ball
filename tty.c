@@ -1,6 +1,6 @@
 #include "tty.h"
 #include "cpu.h"
-#include "console.h"
+#include "machine.h"
 
 // TTY registers
 short tty_kb_buf = 0;
@@ -25,18 +25,21 @@ void tty_reset(){
   tty_dcr = TTY_IE_MASK;
 }
 
-void tty_process(){
+char tty_process(){
   // TTY and console handling:
   // If keyboard flag is not set, try to read one char.
   if( !tty_kb_flag ) {
     char input, res;
     res = read_tty_byte(&input);
-    if( res ) {
+    if( res == 1 ) {
       tty_kb_buf = input;
       tty_kb_flag = 1;
       if( tty_dcr & TTY_IE_MASK ){
         cpu_raise_interrupt(TTYI_INTR_FLAG);
       }
+    }
+    if( res == -1 ){
+      return -1;
     }
   }
 
@@ -49,4 +52,6 @@ void tty_process(){
       cpu_raise_interrupt(TTYO_INTR_FLAG);
     }
   }
+
+  return 0;
 }

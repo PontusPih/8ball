@@ -10,19 +10,27 @@
 #include "console.h"
 #include "cpu.h"
 #include "tty.h"
+#include "machine.h"
 
 char in_console = 1;
-char trace_instruction = 0;
 // flags set by options:
 char exit_on_HLT = 0; // A HLT will exit the proccess with EXIT_FAILURE
 short stop_at = -1;
+char *pty_name = NULL;
+char *restore_file = NULL;
+char start_running = 0;
 
 void signal_handler(int signo)
 {
   if(signo == SIGINT) {
     // Catch Ctrl+c and drop to console.
-    printf("SIGINT caught, dropping to console.\n");
-    in_console = 1;
+    printf("SIGINT caught\n");
+    if( ! in_console ) {
+      printf("CPU running, attempting to interrupt\n");
+      in_console = 0;
+      machine_interrupt();
+      // TODO add command for interrupting when not in console mode.
+    }
   }
 }
 
@@ -41,7 +49,13 @@ void exit_cleanup(void);
 void console_setup(int argc, char **argv)
 {
   parse_options(argc, argv);
-  
+  machine_setup(pty_name);
+  machine_set_stop_at(stop_at);
+  if( restore_file != NULL && ! restore_state(restore_file) ){
+    exit(EXIT_FAILURE);
+  }
+
+  // TODO use on_exit to avoid save_state() on EXIT_FAILURE
   atexit(exit_cleanup); // register after parse_option so prev.core
                         // is not overwritten with blank state.
 
@@ -76,39 +90,42 @@ void console_setup(int argc, char **argv)
 
 }
 
-void console_stop_break()
+void console_break()
 {
-  if( breakpoints[pc] & BREAKPOINT ){
-    printf(" >>> BREAKPOINT HIT at %o <<<\n", pc);
-    in_console = 1;
-  }
+  printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
+}
 
-  if( stop_at > 0 && pc == stop_at ){
-    printf("\n >>> STOP AT <<<\n");
-    print_regs();
-    printf("\n");
-    exit(EXIT_SUCCESS);
-  }
+
+void console_stop_at()
+{
+  printf("\n >>> STOP AT <<<\n");
+  print_regs();
+  printf("\n");
+  exit(EXIT_SUCCESS);
 }
 
 
 void console_trace_instruction()
 {
-  if( trace_instruction ) {
-    if( ion && intr && (! intr_inhibit) ){
-      // An interrupt occured, disable interrupts, force JMS to 0000
-      printf("%.6o  %.6o INTERRUPT ==> JMS to 0", pc, *(mem+pc));
-    } else {
-      print_instruction(pc);
-    }
+  short ion = machine_examine_reg(ION_FLAG);
+  short intr = machine_examine_reg(INTR);
+  short intr_inhibit = machine_examine_reg(INTR_INHIBIT);
+  short pc = machine_examine_reg(PC);
+
+  if( ion && intr && (! intr_inhibit) ){
+    // An interrupt occured, disable interrupts, force JMS to 0000
+    short mem = machine_examine_mem(pc);
+    printf("%.6o  %.6o INTERRUPT ==> JMS to 0", pc, mem);
+  } else {
+    print_instruction(pc);
   }
 }
 
 
 void print_instruction(short pc)
 { 
-  short cur = *(mem + pc);
-  short addr = operand_addr(pc, 1);
+  short cur = machine_examine_mem(pc);
+  short addr = machine_operand_addr(pc, 1);
 
   printf("%.5o  %.4o", pc, cur);
 
@@ -141,13 +158,13 @@ void print_instruction(short pc)
     }
 
     if( cur & I_MASK ){
-      printf(" I %.5o (%.5o)", direct_addr(pc), addr);
+      printf(" I %.5o (%.5o)", machine_direct_addr(pc), addr);
     } else {
       printf("   %.5o", addr);
     }
 
     if( (cur & IF_MASK) < JMS ){
-      printf(" [%.4o]", mem[addr]);
+      printf(" [%.4o]", machine_examine_mem(addr));
     }
 
   } else {
@@ -170,13 +187,22 @@ void print_instruction(short pc)
           break;
         case GTF:
           // TODO add more fields as support is added. (GT)
-          printf(" GTF (LINK = %o INTR = %o ION = %o U = %o IF = %o DF = %o)",
-                 LINK, intr, ion, ((sf & 0100) >> 6), ((sf & 070) >> 3), sf & 07);
+          {
+            short ac = machine_examine_reg(AC);
+            short intr = machine_examine_reg(INTR);
+            short ion = machine_examine_reg(ION_FLAG);
+            short sf = machine_examine_reg(SF);
+            printf(" GTF (LINK = %o INTR = %o ION = %o U = %o IF = %o DF = %o)",
+                   LINK, intr, ion, ((sf & 0100) >> 6), ((sf & 070) >> 3), sf & 07);
+          }
           break;
         case RTF:
           // TODO restore more fields. (GT);
-          printf(" RTF (LINK = %o INHIB = %o ION = %o U = %o IF = %o DF = %o)",
-                 (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 6) & 1, (ac >> 3) & 07, ac & 07);
+          {
+            short ac = machine_examine_reg(AC);
+            printf(" RTF (LINK = %o INHIB = %o ION = %o U = %o IF = %o DF = %o)",
+                   (ac >> 11) & 1, (ac >> 8) & 1, (ac >> 7) & 1, (ac >> 6) & 1, (ac >> 3) & 07, ac & 07);
+          }
           break;
         case SGT:
           // TODO add with EAE support
@@ -209,7 +235,7 @@ void print_instruction(short pc)
           printf(" KRB");
           break;
         default:
-          printf("illegal IOT instruction. device 03 - keyboard\n");
+          printf(" illegal IOT instruction. device 03 - keyboard");
           break;
         }
         break;
@@ -234,7 +260,7 @@ void print_instruction(short pc)
           printf(" TLS");
           break;
         default:
-          printf("illegal IOT instruction. device 04 - TTY output\n");
+          printf(" illegal IOT instruction. device 04 - TTY output");
           break;
         }
         break;
@@ -420,7 +446,7 @@ char tty_file[100] = "binloader.rim";
 char tty_read_from_file = 0;
 FILE *tty_fh = NULL;
 
-char read_tty_byte(char *output)
+char console_read_tty_byte(char *output)
 {
   if( tty_read_from_file ){
     int byte = fgetc( tty_fh );
@@ -429,8 +455,7 @@ char read_tty_byte(char *output)
              "Further reads will be from keyboard\n");
       fclose( tty_fh );
       tty_read_from_file = 0;
-      in_console = 1;
-      return 0;
+      return -1;
     } else {
       *output = byte;
       return 1;
@@ -447,9 +472,11 @@ char read_tty_byte(char *output)
   }
 }
 
-void write_tty_byte(char output){
+void console_write_tty_byte(char output)
+{
   write(1, &output, 1);
 }
+
 
 void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unused)) linenoiseCompletions *lc){
 
@@ -457,6 +484,17 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 
 void print_regs()
 {
+  short pc = machine_examine_reg(PC);
+  short ac = machine_examine_reg(AC);
+  short mq = machine_examine_reg(MQ);
+  short df = machine_examine_reg(DF);
+  short ib = machine_examine_reg(IB);
+  short uf = machine_examine_reg(UF);
+  short sf = machine_examine_reg(SF);
+  short sr = machine_examine_reg(SR);
+  short ion = machine_examine_reg(ION_FLAG);
+  short intr_inhibit = machine_examine_reg(INTR_INHIBIT);
+
   printf("PC = %o AC = %o MQ = %o DF = %o IB = %o U = %o SF = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, uf, sf, sr, ion, intr_inhibit);
 }
 
@@ -605,20 +643,17 @@ void to_few_args(){
 
 char console(void)
 {
-  if( in_console < 0 ) {
-    printf(" >>> CPU HALTED <<<\n");
-    print_regs();
-    printf("\n");
-    if( exit_on_HLT ){
-      exit(EXIT_FAILURE);
-    }
-  }
-
   char *line;
   char done = 0;
-  char in_console = 0;
   while(!done){
-    line = linenoise(">> ");
+    if( start_running == 1 ){
+      line = malloc(2);
+      line[0] = 'r';
+      line[1] = '\0';
+      start_running = 0;
+    } else {
+      line = linenoise(">> ");
+    }
     if( line == NULL ){
       if( errno == EAGAIN ){
         // linenoise will set errno to EAGAIN if it reads ctrl+c
@@ -660,7 +695,7 @@ char console(void)
         }
 
         if( CLEAR == _2nd_tok ) {
-          memset(breakpoints, 0, MEMSIZE);
+          machine_clear_all_bp();
           printf("Breakpoints cleared\n");
           break;
         }
@@ -668,7 +703,7 @@ char console(void)
         if( LIST == _2nd_tok ){
           for(int i = 0; i < MEMSIZE; i++) {
             // TODO add tests
-            if( breakpoints[i] ){
+            if( machine_examine_bp(i) ){
               printf("Breakpoint set at %o\n", i);
             }
           }
@@ -682,8 +717,8 @@ char console(void)
 
         val = read_15bit_octal(_2nd_str);
         if( val > 0 && val < MEMSIZE ){
-          breakpoints[val] = breakpoints[val] ^ BREAKPOINT;
-          if( breakpoints[val] ){
+          machine_toggle_bp(val);
+          if( machine_examine_bp(val) ){
             printf("Breakpoint set at %o\n", val);
           } else {
             printf("Breakpoint at %o cleared\n", val);
@@ -705,48 +740,48 @@ char console(void)
         int start, end;
         switch(_2nd_tok) {
         case E_AC:
-          printf("AC = %o\n", ac);
+          printf("AC = %o\n", machine_examine_reg(AC));
           break;
         case E_MQ:
-          printf("MQ = %o\n", mq);
+          printf("MQ = %o\n", machine_examine_reg(MQ));
           break;
         case E_SR:
-          printf("SR = %o\n", sr);
+          printf("SR = %o\n", machine_examine_reg(SR));
           break;
         case E_ION:
-          printf("ION = %o\n", ion);
+          printf("ION = %o\n", machine_examine_reg(ION_FLAG));
           break;
         case E_INTR:
-          printf("INTR = %o\n", intr);
+          printf("INTR = %o\n", machine_examine_reg(INTR));
           break;
         case E_SF:
-          printf("SF = %o\n", sf);
+          printf("SF = %o\n", machine_examine_reg(SF));
           break;
         case E_DF:
-          printf("DF = %o\n", df);
+          printf("DF = %o\n", machine_examine_reg(DF));
           break;
         case E_IF:
-          printf("IF = %o\n", (pc & IF_MASK) >> 12);
+          printf("IF = %o\n", (machine_examine_reg(PC) & IF_MASK) >> 12);
           break;
         case E_INHIB:
-          printf("INHIB = %o\n", intr_inhibit);
+          printf("INHIB = %o\n", machine_examine_reg(INTR_INHIBIT));
           break;
         case E_IB:
-          printf("IB = %o\n", ib);
+          printf("IB = %o\n", machine_examine_reg(IB));
           break;
         case E_UF:
-          printf("UF = %o\n", uf);
+          printf("UF = %o\n", machine_examine_reg(UF));
           break;
         case E_UB:
-          printf("UB = %o\n", ub);
+          printf("UB = %o\n", machine_examine_reg(UB));
           break;
         case E_PC:
-          printf("PC = %o\n", pc);
+          printf("PC = %o\n", machine_examine_reg(PC));
           break;
         case E_TTY:
           printf("TTY keyboard: buf = %o flag = %d\n"
                  "TTY printer:  buf = %o flag = %d\n"
-                 "TTY DCR = %o\n", tty_kb_buf, tty_kb_flag, tty_tp_buf, tty_tp_flag, tty_dcr);
+                 "TTY DCR = %o\n", machine_examine_reg(TTY_KB_BUF), machine_examine_reg(TTY_KB_FLAG), machine_examine_reg(TTY_TP_BUF), machine_examine_reg(TTY_TP_FLAG), machine_examine_reg(TTY_DCR));
           break;
         case E_CPU:
           print_regs();
@@ -810,36 +845,36 @@ char console(void)
         case E_AC:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 ){
-            ac = val;
-            printf("AC = %o\n", ac);
+            machine_deposit_reg(AC, val);
+            printf("AC = %o\n", machine_examine_reg(AC));
           }
           break;
         case E_MQ:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 ){
-            mq = val;
-            printf("MQ = %o\n", mq);
+            machine_deposit_reg(MQ,val);
+            printf("MQ = %o\n", machine_examine_reg(MQ));
           }
           break;
         case E_SR:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 ){
-            sr = val;
-            printf("SR = %o\n", sr);
+            machine_deposit_reg(SR,val);
+            printf("SR = %o\n", machine_examine_reg(SR));
           }
           break;
         case E_DF:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 ){
-            df = val;
-            printf("DF = %o\n", df);
+            machine_deposit_reg(DF,val);
+            printf("DF = %o\n", machine_examine_reg(DF));
           }
           break;
         case E_IF:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 && val <= 3){
-            pc = ((val << 12 ) & FIELD_MASK) | (pc & B12_MASK);
-            printf("IF = %o\n", (pc & FIELD_MASK) >> 12);
+            machine_deposit_reg(PC,(((val << 12 ) & FIELD_MASK) | (machine_examine_reg(PC) & B12_MASK)));
+            printf("IF = %o\n", (machine_examine_reg(PC) & FIELD_MASK) >> 12);
           } else {
             printf("Syntax ERROR, IF can be between 0 and 03\n");
           }
@@ -847,15 +882,15 @@ char console(void)
         case E_PC:
           val = read_15bit_octal(_3rd_str);
           if( val >= 0 ){
-            pc = val;
-            printf("PC = %o\n", pc);
+            machine_deposit_reg(PC,val);
+            printf("PC = %o\n", machine_examine_reg(PC));
           }
           break;
         case OCTAL_LITERAL:
           addr = read_15bit_octal(_2nd_str);
           val = read_12bit_octal(_3rd_str);
           if( addr >= 0 && val >= 0 ){
-            mem[addr] = val;
+            machine_deposit_mem(addr,val);
             print_instruction(addr);
           }
           break;
@@ -942,8 +977,29 @@ char console(void)
         }
         break;
       case RUN:
+      case STEP:
+        if( _2nd_tok != NULL_TOKEN ){
+          to_many_args();
+          break;
+        }
+
+        if( _1st_tok == STEP ){
+          // TODO figure out how print useful information.
+          print_regs();
+          printf("\t\t");
+          print_instruction(machine_examine_reg(PC));
+        }
+
         in_console = 0;
-        done = 1;
+        if( machine_run( _1st_tok == STEP ? 1 : 0 ) < 0) {
+          printf(" >>> CPU HALTED <<<\n");
+          print_regs();
+          printf("\n");
+          if( exit_on_HLT ){
+            exit(EXIT_FAILURE);
+          }
+        }
+        in_console = 1;
         break;
       case SAVE:
         if( NULL_TOKEN != _3rd_tok ){
@@ -987,26 +1043,14 @@ char console(void)
           to_few_args();
         }
         break;
-      case STEP:
-        if( _2nd_tok != NULL_TOKEN ){
-          to_many_args();
-          break;
-        }
-        // TODO figure out how print useful information.
-        print_regs();
-        printf("\t\t");
-        print_instruction(pc);
-        in_console = 1;
-        done = 1;
-        break;
       case TRACE:
         if( _2nd_tok != NULL_TOKEN ){
           to_many_args();
           break;
         }
 
-        trace_instruction = !trace_instruction;
-        if( trace_instruction ){
+        machine_toggle_trace();
+        if( machine_examine_trace() ){
           printf("Instruction trace ON\n");
         } else {
           printf("Instruction trace OFF\n");
@@ -1061,7 +1105,7 @@ char console(void)
   }
 
   linenoiseHistorySave("history.txt");
-  return in_console;
+  return 1;
 }
 
 
@@ -1069,6 +1113,7 @@ void exit_cleanup(void)
 {
   save_state("prev.core");
   tcsetattr(0, TCSANOW, &told);
+  machine_quit();
 }
 
 int save_state(char *filename)
@@ -1079,6 +1124,20 @@ int save_state(char *filename)
     perror("Unable to open state file");
     return 0;
   }
+
+  short pc = machine_examine_reg(PC);
+  short ac = machine_examine_reg(AC);
+  short mq = machine_examine_reg(MQ);
+  short df = machine_examine_reg(DF);
+  __attribute__((unused)) short ib = machine_examine_reg(IB);
+  __attribute__((unused)) short uf = machine_examine_reg(UF);
+  __attribute__((unused)) short sf = machine_examine_reg(SF);
+  short sr = machine_examine_reg(SR);
+  short ion = machine_examine_reg(ION_FLAG);
+  __attribute__((unused))  short intr_inhibit = machine_examine_reg(INTR_INHIBIT);
+  short rtf_delay = machine_examine_reg(RTF_DELAY);
+  short ion_delay = machine_examine_reg(ION_DELAY);
+  short intr = machine_examine_reg(INTR);
 
   // TODO save/restore more state variables
   fprintf(core, "8BALL MEM DUMP VERSION=1\n");
@@ -1096,7 +1155,7 @@ int save_state(char *filename)
       fprintf(core, "PAGE %.3o\n",p);
       for(int row=0;row <8;row++){
         for(int col=0;col<16;col++){
-          fprintf(core,"%.4o ",mem[i++]);
+          fprintf(core,"%.4o ",machine_examine_mem(i++));
         }
         fprintf(core, "\n");
       }
@@ -1188,16 +1247,19 @@ int restore_state(char *filename)
     return 0;
   }
 
-  memcpy(mem, rmem, MEMSIZE);
-  pc = rpc;
-  ac = rac;
-  mq = rmq;
-  df = rdf;
-  sr = rsr;
-  ion = rion;
-  ion_delay = rion_delay;
-  rtf_delay = rrtf_delay;
-  intr = rintr;
+  // TODO send using machine
+  for(int i=0; i<MEMSIZE; i++){
+    machine_deposit_mem(i, rmem[i]);
+  }
+  machine_deposit_reg(PC,rpc);
+  machine_deposit_reg(AC,rac);
+  machine_deposit_reg(MQ,rmq);
+  machine_deposit_reg(DF,rdf);
+  machine_deposit_reg(SR,rsr);
+  machine_deposit_reg(ION_FLAG,rion);
+  machine_deposit_reg(ION_DELAY,rion_delay);
+  machine_deposit_reg(RTF_DELAY,rrtf_delay);
+  machine_deposit_reg(INTR,rintr);
   return 1;
 }
 
@@ -1216,6 +1278,7 @@ void parse_options(int argc, char **argv)
       {"stop_at",     required_argument, 0, 's' },
       {"pc",          required_argument, 0, 'p' },
       {"run",         no_argument,       0, 'n' },
+      {"pty",         required_argument, 0, 'y' },
       {0,             0,                 0, 0 }
     };
 
@@ -1227,9 +1290,7 @@ void parse_options(int argc, char **argv)
 
     switch (c) {
     case 'r':
-      if( ! restore_state(optarg) ){
-        exit(EXIT_FAILURE);
-      }
+      restore_file = optarg;
       break;
 
     case 'e':
@@ -1246,11 +1307,16 @@ void parse_options(int argc, char **argv)
         printf("?? pc option out of range ??\n");
         exit(EXIT_FAILURE);
       }
+      // TODO set in server after connect
       stop_at = value;
       break;
 
     case 'n':
-      in_console = 0;
+      start_running = 1;
+      break;
+
+    case 'y':
+      pty_name = optarg;
       break;
 
     case '?':

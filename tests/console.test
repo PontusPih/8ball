@@ -124,8 +124,28 @@ Breakpoint set at 7757
  >>> BREAKPOINT HIT at 7757 <<<
 >>>=0
 
+# 7. Repeated breakpoint test
+./8ball
+<<<
+b 7757
+run
+deposit pc 7756
+run
+b 7757
+b 7760
+run
+exit
+>>>
+Breakpoint set at 7757
+ >>> BREAKPOINT HIT at 7757 <<<
+PC = 7756
+ >>> BREAKPOINT HIT at 7757 <<<
+Breakpoint at 7757 cleared
+Breakpoint set at 7760
+ >>> BREAKPOINT HIT at 7760 <<<
+>>>=0
 
-# 7. Step test
+# 8. Step test
 ./8ball
 <<<
 step
@@ -137,7 +157,7 @@ PC = 7757
 >>>=0
 
 
-# 8. Trace test
+# 9. Trace test
 ./8ball
 <<<
 break 7760
@@ -148,14 +168,13 @@ exit
 >>>
 Breakpoint set at 7760
 Instruction trace ON
-07756  6032 KCC
 07757  6031 KSF
  >>> BREAKPOINT HIT at 7760 <<<
 Instruction trace OFF
 >>>=0
 
 
-# 9. Abbreviations test
+# 10. Abbreviations test
 ./8ball
 <<<
 step
@@ -178,12 +197,12 @@ Breakpoint set at 7761
 07760  5357 JMP     07757
 >>>=0
 
-# 10. Prepare Save test
+# 11. Prepare Save test
 
 rm prev.core
 >>>=0
 
-# 11. Save test
+# 12. Save test
 ./8ball
 <<<
 d pc 1234
@@ -205,7 +224,7 @@ PC = 1234
 >>>=0
 
 
-# 12. tty control test
+# 13. tty control test
 ./8ball
 <<<
 tty_source
@@ -217,7 +236,6 @@ tty_source
 tty_attach binloader.rim
 tty_source
 r
-examine cpu
 exit
 >>>
 TTY input from file: "binloader.rim"
@@ -227,5 +245,8 @@ TTY input from file: "8ball"
 TTY input from keyboard
 TTY input from file: "binloader.rim"
 Reached end of TTY file, dropping to console. Further reads will be from keyboard
-PC = 7760 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+ >>> CPU HALTED <<<
+PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
 >>>=0
+
+# TODO prep core for above test
