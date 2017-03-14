@@ -250,3 +250,11 @@ PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
 >>>=0
 
 # TODO prep core for above test
+
+# 14. stop at test
+./8ball --stop_at 7757 --run
+>>>
+
+ >>> STOP AT <<<
+PC = 7757 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7777 ION = 0 INHIB = 0
+>>>=0
