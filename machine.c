@@ -233,6 +233,22 @@ void send_short(short val)
 }
 
 
+void ack_console()
+{
+#ifdef PTY_SRV
+  unsigned char buf[1] = { 'I' };
+  send_cmd(ptm, buf, 1);
+  while(1) {
+    // system interrupted. await acknowledge
+    unsigned char *rbuf;
+    if( recv_cmd(ptm, &rbuf) > 0 && rbuf[0] == 'C'){
+      break;
+    }
+  }
+#endif
+}
+
+
 void machine_srv()
 {
 #ifdef PTY_SRV
@@ -240,9 +256,10 @@ void machine_srv()
   while(1){
     // First start in CONSOLE mode
     unsigned char *buf;
-    recv_cmd(ptm, &buf); // TODO ack console break at any
-                         // time. Because a new client will want to
-                         // know current state.
+    if( recv_cmd(ptm, &buf) < 0 ) {
+      ack_console();
+      continue; // Received break and acked it, get next command.
+    }
     switch(buf[0]) {
     case 'R': // Start execution
     case 'S': // Single step
@@ -251,15 +268,7 @@ void machine_srv()
         char state = machine_run(single);
         switch( state ){
         case 'I':
-          buf[0] = 'I';
-          send_cmd(ptm, buf, 1);
-          while(1) {
-            // system interrupted. await acknowledge
-            recv_cmd(ptm, &buf);
-            if(buf[0] == 'C'){
-              break;
-            }
-          }
+          ack_console(); // Wait for ack.
           break;
         default:
           buf[0] = state;
@@ -630,4 +639,24 @@ void machine_interrupt()
 #endif
 
   // TODO server build?
+}
+
+
+void machine_halt()
+{
+#ifdef PTY_CLI
+  send_console_break(pts);
+  send_console_break(pts);
+
+  while(1) {
+    // system interrupted. await acknowledge
+    unsigned char *rbuf;
+    recv_cmd(pts, &rbuf);
+    if(rbuf[0] == 'I'){
+      unsigned char buf[1] =  { 'C' };
+      send_cmd(pts, buf, 1);
+      break;
+    }
+  }
+#endif
 }

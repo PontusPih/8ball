@@ -29,7 +29,6 @@ void signal_handler(int signo)
       printf("CPU running, attempting to interrupt\n");
       in_console = 0;
       machine_interrupt();
-      // TODO add command for interrupting when not in console mode.
     }
   }
 }
@@ -515,6 +514,7 @@ typedef enum {
   BAD_TOKEN = -2,
   NULL_TOKEN,
   CLEAR,
+  HALT,
   LIST,
   BREAK,
   EXAMINE,
@@ -555,6 +555,8 @@ token map_token(char *token)
     return LIST;
   if( ! strcasecmp(token, "clear") || ! strcasecmp(token, "c") )
     return CLEAR;
+  if( ! strcasecmp(token, "halt") || ! strcasecmp(token, "hlt") )
+    return HALT;
   if( ! strcasecmp(token, "break") || ! strcasecmp(token, "b") )
     return BREAK;
   if( ! strcasecmp(token, "examine") || ! strcasecmp(token, "e") )
@@ -711,6 +713,16 @@ void console(void)
           printf("ERROR, breakpoint outside memory\n");
         }
 
+        break;
+      case HALT:
+        if( OCTAL_LITERAL != _2nd_tok ){
+          if( NULL_TOKEN != _3rd_tok ){
+            to_many_args();
+            break;
+          }
+        }
+
+        machine_halt();
         break;
       case EXAMINE:
 
@@ -1307,7 +1319,6 @@ void parse_options(int argc, char **argv)
         printf("?? pc option out of range ??\n");
         exit(EXIT_FAILURE);
       }
-      // TODO set in server after connect
       stop_at = value;
       break;
 

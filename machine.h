@@ -44,5 +44,6 @@ void write_tty_byte(char output);
 
 void machine_setup(char *pty_name);
 char machine_run(char single);
+void machine_halt();
 
 #endif // _MACHINE_H_
