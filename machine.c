@@ -127,30 +127,6 @@ void write_tty_byte(char output)
 }
 
 
-char machine_break()
-{
-#ifndef PTY_CLI
-  if( breakpoints[pc] & BREAKPOINT ){
-    return -1;
-  }
-#endif
-
-  return 0;
-}
-
-
-char machine_stop_at()
-{
-#ifndef PTY_CLI
-  if( internal_stop_at >= 0 && pc == internal_stop_at ){
-    return -1;
-  }
-#endif
-
-  return 0;
-}
-
-
 char machine_run(char single)
 {
 #if defined(PTY_SRV) || defined(SERVER_BUILD)
@@ -180,11 +156,11 @@ char machine_run(char single)
       return 'H';
     }
 
-    if( machine_break() == -1 ){
+    if( breakpoints[pc] & BREAKPOINT ){
       return 'B';
     }
 
-    if( machine_stop_at() == -1 ){
+    if( internal_stop_at >= 0 && pc == internal_stop_at ){
       return 'P';
     }      
 
