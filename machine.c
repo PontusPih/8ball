@@ -15,8 +15,6 @@ short internal_stop_at = -1;
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdarg.h>
 int ptm = -1; // PTY master handle
 #define UNUSED(x) (void)(x);
 #include <string.h>
@@ -27,7 +25,6 @@ int ptm = -1; // PTY master handle
 #define _XOPEN_SOURCE 600
 #include <stdlib.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #define _BSD_SOURCE 1
 #define __USE_MISC 1
