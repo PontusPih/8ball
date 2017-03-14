@@ -153,12 +153,14 @@ char machine_stop_at()
 
 char machine_run(char single)
 {
-#ifdef PTY_SRV
+#if defined(PTY_SRV) || defined(SERVER_BUILD)
   int tty_skip_count = 0;
-  while(1) {    
+  while(1) {
+#ifdef PTY_SRV
     if( recv_console_break(ptm) ){
-      return -2;
+      return 'I';
     }
+#endif
 
     // This loops calls each emulated device in turn and any call that
     // uses recv_cmd() must return to console mode immediately if the
@@ -170,38 +172,33 @@ char machine_run(char single)
     if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
       tty_skip_count = 0;
       if( tty_process() == -1 ){
-        return -2;
+        return 'I';
       }
     }
   
     if( cpu_process() == -1 ){
-      unsigned char buf[1] = {'H'};
-      send_cmd(ptm, buf, 1);
-      return -1;
+      return 'H';
     }
 
     if( machine_break() == -1 ){
-      unsigned char buf[1] = {'B'};
-      send_cmd(ptm, buf, 1);
-      return -1;
+      return 'B';
     }
 
     if( machine_stop_at() == -1 ){
-      unsigned char buf[1] = {'P'};
-      send_cmd(ptm, buf, 1);
-      return -1;
+      return 'P';
     }      
 
     if( single ){
-      unsigned char buf[1] = {'S'};
-      send_cmd(ptm, buf, 1);
-      return -1;
+      return 'S';
     }
 
     if( trace_instruction ){
-      unsigned char buf[1] = { 'D' };
-      send_cmd(ptm, buf, 1);
-      return -1;
+#ifdef PTY_SRV
+      return 'D';
+#else
+      // TODO handle this in console.c
+      console_trace_instruction();
+#endif
     }
   }
 #endif
@@ -216,16 +213,11 @@ char machine_run(char single)
     switch(buf[0]) {
     case 'I': // Interrupted
       send_cmd(pts, (unsigned char*)"C",1);
-      return -2;
     case 'H': // CPU has halted
-      return -1;
     case 'B': // Breakpoint hit
-      console_break();
-      return 1;
     case 'S': // Single step done
-      return 1;
     case 'P': // stop_at hit
-      console_stop_at(); // will exit. ^C will not work
+      return buf[0];
       break;
     case 'T': // TTY Request
       if( buf[1] == 'R' ){
@@ -239,51 +231,11 @@ char machine_run(char single)
       break;
     case 'D': // Display (trace) instruction.
       console_trace_instruction();
+      // TODO handle this in console.c
       // During trace instruction the server pops out to console mode,
       // restart it.
       send_cmd(pts, run_buf, 1);
       break;
-    }
-  }
-#endif
-
-#ifdef SERVER_BUILD
-  int tty_skip_count = 0;
-  while(1) {    
-    // This loops calls each emulated device in turn and any call that
-    // uses recv_cmd() must return to console mode immediately if the
-    // CONSOLE byte has been received.
-
-    // Any device that can should be able to resume state if CONSOLE
-    // has been recv:d
-
-    if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
-      tty_skip_count = 0;
-      if( tty_process() == -1 ){
-        return -2;
-      }
-    }
-  
-    if( cpu_process() == -1 ){
-      return -1;
-    }
-
-    if( machine_break() == -1 ){
-      console_break();
-      return 1;
-    }
-
-    if( machine_stop_at() == -1 ){
-      console_stop_at();
-      return -1;
-    }      
-
-    if( single ){
-      return 1;
-    }
-
-    if( trace_instruction ){
-      console_trace_instruction();
     }
   }
 #endif
@@ -323,7 +275,9 @@ int main()
     case 'S': // Single step
       {
         char single = buf[0] == 'S' ? 1 : 0;
-        if( machine_run(single) == -2 ){
+        char state = machine_run(single);
+        switch( state ){
+        case 'I':
           buf[0] = 'I';
           send_cmd(ptm, buf, 1);
           while(1) {
@@ -333,6 +287,11 @@ int main()
               break;
             }
           }
+          break;
+        default:
+          buf[0] = state;
+          send_cmd(ptm, buf, 1);
+          break;
         }
       }
       break;
@@ -696,4 +655,6 @@ void machine_interrupt()
   send_console_break(pts);
   send_console_break(pts);
 #endif
+
+  // TODO server build?
 }

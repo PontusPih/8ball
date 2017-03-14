@@ -90,20 +90,6 @@ void console_setup(int argc, char **argv)
 
 }
 
-void console_break()
-{
-  printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
-}
-
-
-void console_stop_at()
-{
-  printf("\n >>> STOP AT <<<\n");
-  print_regs();
-  printf("\n");
-  exit(EXIT_SUCCESS);
-}
-
 
 void console_trace_instruction()
 {
@@ -991,13 +977,32 @@ char console(void)
         }
 
         in_console = 0;
-        if( machine_run( _1st_tok == STEP ? 1 : 0 ) < 0) {
+        char state = machine_run( _1st_tok == STEP ? 1 : 0 );
+        switch(state) {
+        case 'B':
+          printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
+          break;
+        case 'I':
+        case 'H':
           printf(" >>> CPU HALTED <<<\n");
           print_regs();
           printf("\n");
           if( exit_on_HLT ){
             exit(EXIT_FAILURE);
           }
+          break;
+        case 'P':
+          printf("\n >>> STOP AT <<<\n");
+          print_regs();
+          printf("\n");
+          exit(EXIT_SUCCESS);
+          break;
+        case 'S':
+          // TODO print next instruction to be executed?
+          break;
+        default:
+          printf(" >>> Unknown machine state <<<\n");
+          break;
         }
         in_console = 1;
         break;
