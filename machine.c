@@ -236,9 +236,9 @@ void send_short(short val)
 }
 
 
-#ifdef PTY_SRV
-int main()
+void machine_srv()
 {
+#ifdef PTY_SRV
   machine_setup(NULL);
   while(1){
     // First start in CONSOLE mode
@@ -325,8 +325,8 @@ int main()
       exit(EXIT_FAILURE);
     }
   }
-}
 #endif
+}
 
 
 short machine_examine_mem(short addr)

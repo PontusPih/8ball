@@ -7,6 +7,6 @@ void console_write_tty_byte(char output);
 void console_stop_at(void);
 void console_trace_instruction(void);
 
-char console(void);
+void console(void);
 
 #endif // _CONSOLE_H_

@@ -38,7 +38,6 @@ void signal_handler(int signo)
 struct termios told, tnew;
 
 void completion_cb(const char *buf, linenoiseCompletions *lc);
-char console();
 void print_regs();
 void print_instruction(short pc);
 int save_state(char *filename);
@@ -627,11 +626,10 @@ void to_few_args(){
   printf("Syntax ERROR, too few arguments\n");
 }
 
-char console(void)
+void console(void)
 {
   char *line;
-  char done = 0;
-  while(!done){
+  while(1){
     if( start_running == 1 ){
       line = malloc(2);
       line[0] = 'r';
@@ -1108,9 +1106,6 @@ char console(void)
     }
     free(line);
   }
-
-  linenoiseHistorySave("history.txt");
-  return 1;
 }
 
 

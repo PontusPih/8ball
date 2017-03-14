@@ -37,6 +37,7 @@ void machine_toggle_trace();
 void machine_set_stop_at(short addr);
 void machine_interrupt();
 void machine_quit();
+void machine_srv();
 
 char read_tty_byte(char *output);
 void write_tty_byte(char output);
