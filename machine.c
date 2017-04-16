@@ -16,6 +16,7 @@ short internal_stop_at = -1;
 #include <stdio.h>
 #include <unistd.h>
 int ptm = -1; // PTY master handle
+int tty_skip_count = 0;
 #define UNUSED(x) (void)(x);
 #include <string.h>
 #endif
@@ -127,7 +128,6 @@ void write_tty_byte(char output)
 char machine_run(char single)
 {
 #if defined(PTY_SRV) || defined(SERVER_BUILD)
-  int tty_skip_count = 0;
   while(1) {
 #ifdef PTY_SRV
     if( recv_console_break(ptm) ){
@@ -142,7 +142,7 @@ char machine_run(char single)
     // Any device that can should be able to resume state if CONSOLE
     // has been recv:d
 
-    if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
+    if( single || tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
       tty_skip_count = 0;
       if( tty_process() == -1 ){
         return 'I';
