@@ -417,7 +417,9 @@ void print_instruction(short pc)
 
           // TODO CLA & MQL is called CAM in some assemblers, support?
           //      MQA & MQL is called SWP in some assemblers.
-          //      CLA & OSR is called LAS
+          //      CLA & OSR is called LAS (Load AC from Switches)
+          //      CLL & CML is called STL (Set The link to a 1)
+          //      CLA & CMA is called STA (Set The AC to a -1)
         }
       }
       break;
@@ -981,6 +983,8 @@ void console(void)
 
         if( _1st_tok == STEP ){
           // TODO figure out how print useful information.
+          // After execution print instruction at new PC. As well as
+          // current content of PC.
           print_regs();
           printf("\t\t");
           print_instruction(machine_examine_reg(PC));
@@ -991,12 +995,14 @@ void console(void)
         switch(state) {
         case 'B':
           printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
+          // TODO print_instuction
           break;
         case 'I':
         case 'H':
           printf(" >>> CPU HALTED <<<\n");
           print_regs();
           printf("\n");
+          // TODO print_instruction
           if( exit_on_HLT ){
             exit(EXIT_FAILURE);
           }
@@ -1005,10 +1011,11 @@ void console(void)
           printf("\n >>> STOP AT <<<\n");
           print_regs();
           printf("\n");
+          // TODO print_instruction
           exit(EXIT_SUCCESS);
           break;
         case 'S':
-          // TODO print next instruction to be executed?
+          // TODO!!! print regs here? and instruction of next PC
           break;
         default:
           printf(" >>> Unknown machine state <<<\n");

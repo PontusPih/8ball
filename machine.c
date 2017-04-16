@@ -203,6 +203,7 @@ char machine_run(char single)
       }
       break;
     case 'D': // Display (trace) instruction.
+      // TODO BUG, console interrupt here is not acked.
       console_trace_instruction();
       // TODO handle this in console.c
       // During trace instruction the server pops out to console mode,
@@ -257,7 +258,7 @@ void machine_srv()
     // First start in CONSOLE mode
     unsigned char *buf;
     if( recv_cmd(ptm, &buf) < 0 ) {
-      ack_console();
+      ack_console(); // TODO BUG. no console commands expect an ack
       continue; // Received break and acked it, get next command.
     }
     switch(buf[0]) {

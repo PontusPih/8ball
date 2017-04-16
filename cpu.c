@@ -89,9 +89,9 @@ int cpu_process()
   short cur = *(mem+pc); // Much like MB register
   short addr = -1; // Much like CPMA register
   if( (cur & IF_MASK) <= JMP ){
-    // Only calculate addr if the current instruction is an Memory
+    // Only calculate addr if the current instruction is a Memory
     // Referencing Instruction (MRI). Otherwise an instruction that
-    // happens address an autoindexing location _and_ have the
+    // happens to address an autoindexing location _and_ have the
     // indirect bit set (e.g. 6410) will ruin that location.
     addr = operand_addr(pc, 0);
   }
@@ -455,6 +455,9 @@ int cpu_process()
         short lsb = (ac & 00077) << 6;
         ac = (ac & LINK_MASK) | msb | lsb;
       }
+
+      // TODO if RTR|RTL then AC = link | addr & 7600 + cur & 0177
+      // TODO if RAR|RAL then AC = link | cur
 
     } else {
       if( ! (cur & OPR_G3 ) ){
