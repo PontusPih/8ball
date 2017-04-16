@@ -48,7 +48,9 @@ void console_setup(int argc, char **argv)
 {
   parse_options(argc, argv);
   machine_setup(pty_name);
-  machine_set_stop_at(stop_at);
+  if( stop_at > 0 ){
+    machine_set_stop_at(stop_at);
+  }
   if( restore_file != NULL && ! restore_state(restore_file) ){
     exit(EXIT_FAILURE);
   }
