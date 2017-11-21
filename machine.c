@@ -38,6 +38,7 @@ int pts = -1; // PTY slave handle
 #include <string.h>
 #include <stdio.h>
 #include "console.h"
+int tty_skip_count = 0;
 #endif
 
 void machine_setup(char *pty_name)
