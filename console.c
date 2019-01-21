@@ -27,7 +27,7 @@ void signal_handler(int signo)
     printf("SIGINT caught\n");
     if( ! in_console ) {
       printf("CPU running, attempting to interrupt\n");
-      in_console = 0;
+      //      in_console = 0; TODO probably not needed
       machine_interrupt();
     }
   }

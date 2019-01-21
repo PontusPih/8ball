@@ -39,6 +39,7 @@ int pts = -1; // PTY slave handle
 #include <stdio.h>
 #include "console.h"
 int tty_skip_count = 0;
+int interrupted_by_console = 0;
 #endif
 
 void machine_setup(char *pty_name)
@@ -132,6 +133,12 @@ char machine_run(char single)
   while(1) {
 #ifdef PTY_SRV
     if( recv_console_break(ptm) ){
+      return 'I';
+    }
+#endif
+#ifdef SERVER_BUILD
+    if( interrupted_by_console ){
+      interrupted_by_console = 0;
       return 'I';
     }
 #endif
@@ -640,7 +647,7 @@ void machine_interrupt()
   send_console_break(pts);
 #endif
 
-  // TODO server build?
+  interrupted_by_console = 1;
 }
 
 
