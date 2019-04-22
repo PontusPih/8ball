@@ -101,26 +101,3 @@ PC = 7621 AC = 10000 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 0 ION = 0 INHIB = 0
 # 16. CPU Test, state check
 diff prev.core tests/maindec-8e-d0fc-pb.prev1.core
 >>>=0
-
-# 17. PDP8-E MEMORY EXTENSION AND TIME SHARE CONTROL TEST
-# Memory test
-./8ball --restore tests/maindec-8e-d1ha-pb.mem_only.core --run --exit_on_HLT
->>>
- >>> CPU HALTED <<<
-PC = 3575 AC = 0 MQ = 0 DF = 0 IB = 0 U = 0 SF = 177 SR = 6007 ION = 0 INHIB = 1
->>>=1
-# 18. Memory Test, state check
-diff prev.core tests/maindec-8e-d1ha-pb.mem_only.prev.core
->>>=0
-
-
-# 19. PDP8-E MEMORY EXTENSION AND TIME SHARE CONTROL TEST
-# Memory test and Time Share test
-./8ball --restore tests/maindec-8e-d1ha-pb.core --run --exit_on_HLT
->>>
- >>> CPU HALTED <<<
-PC = 1566 AC = 4016 MQ = 0 DF = 0 IB = 0 U = 0 SF = 177 SR = 2007 ION = 0 INHIB = 0
->>>=1
-# 20. Memory Test, state check
-diff prev.core tests/maindec-8e-d1ha-pb.prev.core
->>>=0

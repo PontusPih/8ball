@@ -8,19 +8,6 @@ extern short pc; // Program Counter (and Instruction Field, if)
 extern short ac; // Acumulator
 extern short mq; // Multiplier Quotient
 extern short sr; // Switch Registers, 1 is switch up
-extern short ion; // Interrupt enable flipflop
-extern short ion_delay; //ion will be set after next fetch
-extern short intr; // Interrupt requested flags
-// Memory extension registers
-extern short ib; // Instruction buffer
-extern short sf; // save field
-extern short df; // data field
-extern short intr_inhibit; // interrupt inhibit flag
-// Time share registers
-extern short uf; // User Field
-extern short ub; // User Buffer
-// TODO remove rtf_delay
-extern short rtf_delay; //ion will be set after next fetch
 // TODO add F D E state bits
 
 extern short mem[];
@@ -29,7 +16,7 @@ extern short breakpoints[];
 void cpu_init(void);
 int cpu_process(void);
 short direct_addr(short pc);
-short operand_addr(short pc, char examine);
+short indirect_addr(short pc, char examine);
 void cpu_raise_interrupt(short flag);
 
 #define MEMSIZE 0100000 // MAX 0100000

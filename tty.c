@@ -34,9 +34,6 @@ char tty_process(){
     if( res == 1 ) {
       tty_kb_buf = input;
       tty_kb_flag = 1;
-      if( tty_dcr & TTY_IE_MASK ){
-        cpu_raise_interrupt(TTYI_INTR_FLAG);
-      }
     }
     if( res == -1 ){
       return -1;
@@ -48,9 +45,6 @@ char tty_process(){
     output_pending = 0;
     write_tty_byte(tty_tp_buf);
     tty_tp_flag = 1;
-    if( tty_dcr & TTY_IE_MASK ){
-      cpu_raise_interrupt(TTYO_INTR_FLAG);
-    }
   }
 
   return 0;

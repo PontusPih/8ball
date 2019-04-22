@@ -1,7 +1,7 @@
 all: 8ball
 
 8ball: tty.c tty.h cpu.c cpu.h 8ball.c linenoise.c linenoise.h rimloader.h console.c console.h machine.c machine.h
-	$(CC) -Wall -W -g -o 8ball tty.c cpu.c 8ball.c console.c machine.c linenoise.c -DSERVER_BUILD -fmax-errors=5
+	$(CC) -Wall -W -g -o 8ball tty.c cpu.c 8ball.c console.c machine.c linenoise.c -DSERVER_BUILD -fmax-errors=5 -Wno-unused-parameter
 
 8con: 8ball.c linenoise.c console.h console.c machine.c machine.h serial_com.c serial_com.h
 	$(CC) -Wall -W -g -o 8con 8ball.c linenoise.c console.c machine.c serial_com.c -DPTY_CLI -fmax-errors=1

@@ -161,9 +161,9 @@ char machine_run(char single)
       return 'H';
     }
 
-    if( breakpoints[pc] & BREAKPOINT ){
-      return 'B';
-    }
+    //    if( breakpoints[pc] & BREAKPOINT ){
+    //      return 'B';
+    //    }
 
     if( internal_stop_at >= 0 && pc == internal_stop_at ){
       return 'P';
@@ -232,7 +232,9 @@ short buf2short(unsigned char *b, int i)
 
 void send_short(short val)
 {
+#ifndef SERVER_BUILD
   unsigned char buf[2] = { val >> 8, val & 0xFF };
+#endif
 #ifdef PTY_CLI
   send_cmd(pts, buf, 2);
 #endif
@@ -378,7 +380,7 @@ short machine_operand_addr(short addr, char examine)
   recv_cmd(pts, &rbuf);
   return buf2short(rbuf, 0);
 #else
-  return operand_addr(addr, examine);
+  return indirect_addr(addr, examine);
 #endif
 }
 
@@ -436,70 +438,26 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
     res = mq;
     break;
   case DF:
-    if( dep ){
-      df = val;
-    }
-    res = df;
     break;
   case IB:
-    if( dep ){
-      ib = val;
-    }
-    res = ib;
     break;
   case UB:
-    if( dep ){
-      ub = val;
-    }
-    res = ub;
     break;
   case UF:
-    if( dep ){
-      uf = val;
-    }
-    res = uf;
     break;
   case SF:
-    if( dep ){
-      sf = val;
-    }
-    res = sf;
     break;
   case SR:
-    if( dep ){
-      sr = val;
-    }
-    res = sr;
     break;
   case ION_FLAG:
-    if( dep ){
-      ion = val;
-    }
-    res = ion;
     break;
   case ION_DELAY:
-    if( dep ){
-      ion_delay = val;
-    }
-    res = ion_delay;
     break;
   case INTR_INHIBIT:
-    if( dep ){
-      intr_inhibit = val;
-    }
-    res = intr_inhibit;
     break;
   case INTR:
-    if( dep ){
-      intr = val;
-    }
-    res = intr;
     break;
   case RTF_DELAY:
-    if( dep ){
-      rtf_delay = val;
-    }
-    res = rtf_delay;
     break;
   case TTY_KB_BUF:
     if( dep ){
@@ -562,7 +520,7 @@ void machine_clear_all_bp()
 #endif
 
 #ifdef SERVER_BUILD
-  memset(breakpoints, 0, MEMSIZE);
+  //  memset(breakpoints, 0, MEMSIZE);
 #endif
 
 #ifdef SERIAL_BUILD
@@ -579,7 +537,8 @@ short machine_examine_bp(short addr)
   recv_cmd(pts, &rbuf);
   return buf2short(rbuf, 0);
 #else
-  return breakpoints[addr];
+  return 0;
+  //  return breakpoints[addr];
 #endif
 }
 
@@ -590,7 +549,7 @@ void machine_toggle_bp(short addr)
   unsigned char buf[4] = { 'D', 'B', addr >> 8, addr & 0xFF };
   send_cmd(pts, buf, 4);
 #else
-  breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
+  //  breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
 #endif
 }
 
