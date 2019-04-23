@@ -427,7 +427,7 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
     break;
   case PC:
     if( dep ){
-      pc = val;
+      cpma = pc = val;
     }
     res = pc;
     break;

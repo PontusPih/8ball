@@ -5,6 +5,7 @@
 // just like the clear switch on a real front panel.
 // CPU registers
 extern short pc; // Program Counter (and Instruction Field, if)
+extern short cpma; // Program Counter (and Instruction Field, if)
 extern short ac; // Acumulator
 extern short mq; // Multiplier Quotient
 extern short sr; // Switch Registers, 1 is switch up
