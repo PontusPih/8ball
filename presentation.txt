@@ -1,0 +1,141 @@
+1. Picture of Straight-8
+
+2. Picture of Block diagram (SmallComputerHandbook_Mar67.pdf page 16 (25))
+   
+   - This is what we will implement today
+   - Not in this picture:
+      - Interrupts
+      - Data breaks (DMA)
+      - Extended memory
+      - Time sharing (Multi user)
+
+2.5 Shortcuts!
+    - console
+    - rimloader/binloader
+    - defines galore
+    - maindecs
+
+3. Picture of state diagram (Small_Computer_Handbook_1973.pdf page 3-18 (127))
+
+3.5 Registers:
+    AC
+    L (We will fold it into AC)
+    PC
+    CPMA (Central Processor Memory Address)
+    MB
+    IR
+    MQ
+    SR
+
+3.75 MAINDECS
+
+6. Describe instruction format
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           |  |  |  |  |  |  |  |  |  |  |  |  |
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+           |        | I| Z|       7 bit        |
+           |  3 bit |     |    Word in Page    |
+           | Opcode | Mode                     |
+           |        |         Address          | 
+
+   - First three bits gives three categories
+     - Memory Reference Instructions
+     - I/O insTructions
+     - OPeRate instructions
+
+6. Fun stuff first: OPR
+
+   OPR is divided into three groups. Which is decided by
+   bit 3 and 11.
+   
+
+   Group 1
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 1| 0|  |  |  |  |  |  |  |  |
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+                       |CLA   CMA   RAR   BSW
+                           CLL   CML   RAL   IAC
+
+                         1  1  2  2  4  4  4  3
+
+   Group 2 OR
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 1| 1|  |  |  |  | 0|  |  | 0|
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+                       |CLA   SZA
+                           SMA   SNL
+
+                         2  1  1  1
+
+   Group 2 AND
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 1| 1|  |  |  |  | 1|  |  | 0|
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+                       |CLA   SNA
+                           SPA   SZL
+
+                         2  1  1  1
+
+   Group 2 Priviledged instructions
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 1| 1|  |  |  |  | 1|  |  | 0|
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+                       |               OSR
+                                          HLT
+
+   Group 3 EAE instructions
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 1| 1|  |  |  |  |  |  |  | 1|
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+                       |CLA   SCA   \_    _/
+                       |   MQA   MQL  CODE
+
+                         1  2  2  2     3
+
+5. Implement "defer"
+
+
+7. Implement
+    HLT
+    SMA SZA SNL
+    SPA SNA SZL
+    TAD (Needs fetch, populate MB and IR)
+    CLA, CLL, CMA, CML
+    IAC
+    OSR
+    RAR, RAL
+    RTR, RTL
+    MQA, MQL (another CLA)
+    SWP
+
+    AND
+    ISZ
+    DCA
+    JMS
+    JMP
+
+8. Implement
+    OPR
+
+9. Implement
+    IOT
+
+10. Run Tetris
+
+11. Next steps
+    - Interrupts
+    - Mass storage device (RK05)
+    - Extended memory
+    - EAE
