@@ -96,14 +96,14 @@ void console_trace_instruction()
   short ion = machine_examine_reg(ION_FLAG);
   short intr = machine_examine_reg(INTR);
   short intr_inhibit = machine_examine_reg(INTR_INHIBIT);
-  short pc = machine_examine_reg(PC);
+  short cpma = machine_examine_reg(CPMA);
 
   if( ion && intr && (! intr_inhibit) ){
     // An interrupt occured, disable interrupts, force JMS to 0000
     short mem = machine_examine_mem(pc);
-    printf("%.6o  %.6o INTERRUPT ==> JMS to 0", pc, mem);
+    printf("%.6o  %.6o INTERRUPT ==> JMS to 0", cpma, mem);
   } else {
-    print_instruction(pc);
+    print_instruction(cpma);
   }
 }
 
@@ -417,11 +417,16 @@ void print_instruction(short pc)
             printf(" MQL");
           }
 
+	  if( cur == 07401 ){ // Group three with no micro coded bits set
+	    printf(" NOP");
+	  }
+
           // TODO CLA & MQL is called CAM in some assemblers, support?
           //      MQA & MQL is called SWP in some assemblers.
           //      CLA & OSR is called LAS (Load AC from Switches)
           //      CLL & CML is called STL (Set The link to a 1)
           //      CLA & CMA is called STA (Set The AC to a -1)
+	  //      SCA
         }
       }
       break;
@@ -473,6 +478,7 @@ void completion_cb(__attribute__((unused)) const char *buf, __attribute__((unuse
 void print_regs()
 {
   short pc = machine_examine_reg(PC);
+  short cpma = machine_examine_reg(CPMA);
   short ac = machine_examine_reg(AC);
   short mq = machine_examine_reg(MQ);
   short df = machine_examine_reg(DF);
@@ -483,7 +489,7 @@ void print_regs()
   short ion = machine_examine_reg(ION_FLAG);
   short intr_inhibit = machine_examine_reg(INTR_INHIBIT);
 
-  printf("PC = %o AC = %o MQ = %o DF = %o IB = %o U = %o SF = %o SR = %o ION = %o INHIB = %o", pc, ac, mq, df, ib, uf, sf, sr, ion, intr_inhibit);
+  printf("PC = %o CPMA = %o AC = %o MQ = %o DF = %o IB = %o U = %o SF = %o SR = %o ION = %o INHIB = %o", pc, cpma, ac, mq, df, ib, uf, sf, sr, ion, intr_inhibit);
 }
 
 short read_12bit_octal(const char *buf)
@@ -983,20 +989,19 @@ void console(void)
           break;
         }
 
-        if( _1st_tok == STEP ){
+        if( _1st_tok == STEP && ! machine_examine_trace() ){
           // TODO figure out how print useful information.
           // After execution print instruction at new PC. As well as
           // current content of PC.
-          print_regs();
-          printf("\t\t");
-          print_instruction(machine_examine_reg(PC));
+          print_instruction(machine_examine_reg(CPMA));
         }
 
         in_console = 0;
         char state = machine_run( _1st_tok == STEP ? 1 : 0 );
+
         switch(state) {
         case 'B':
-          printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
+          printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(CPMA));
           // TODO print_instuction
           break;
         case 'I':
@@ -1004,7 +1009,6 @@ void console(void)
           printf(" >>> CPU HALTED <<<\n");
           print_regs();
           printf("\n");
-          // TODO print_instruction
           if( exit_on_HLT ){
             exit(EXIT_FAILURE);
           }
@@ -1017,7 +1021,8 @@ void console(void)
           exit(EXIT_SUCCESS);
           break;
         case 'S':
-          // TODO!!! print regs here? and instruction of next PC
+	  print_regs();
+	  printf("\n");
           break;
         default:
           printf(" >>> Unknown machine state <<<\n");

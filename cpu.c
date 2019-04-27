@@ -3,7 +3,6 @@
 
 // CPU registers
 short ac;
-short l;
 short pc;
 short cpma;
 short mb;
@@ -28,7 +27,7 @@ void cpu_init(void){
   for(int i=0; i < MEMSIZE; i++){
     mem[i] = 0;
   }
-  ac = l = pc = cpma = mb = ir = mq = sr = 0;
+  ac = pc = cpma = mb = ir = mq = sr = 0;
 }
 
 int cpu_process()
@@ -36,26 +35,129 @@ int cpu_process()
   pc = (cpma + 1) & 07777;
   mb = mem[cpma];
   ir = mb & 07000;
+
+  short operand = 0;
+ 
+  if( ir <= 05000 ){
+    if( ! (mb & Z_MASK) ){
+      cpma = cpma & 0177;
+    }
+    short operand_addr = (cpma & 07600) + (mb & 0177);
+    operand = mem[operand_addr];
+  }
   
   switch( ir ) {
 
-  case OPR:
-    if( mb & OPR_G2 ){
-      if( mb & OPR_AND ){
-	char spa_skip = 1;
-	char sna_skip = 1;
-	char szl_skip = 1;
+  case TAD:
+    ac = (ac + operand) & 017777;
+    break;
 
-	if( mb & SPA // och så vidare
+  case OPR:
+    if( ! (mb & OPR_G2) ){ // Group 1
+      if( mb & CLA ){
+	ac = ac & 010000;
+      }
+
+      if( mb & CLL ){
+	ac = ac & 07777;
+      }
+
+      if( mb & CMA ) {
+	ac = (ac & 010000) | (ac ^ 07777);
+      }
+
+      if( mb & CML ){
+	ac = (ac ^ 010000) | (ac & 07777);
+      }
+
+      if( mb & IAC ){
+	ac = (ac + 1) & 017777;
+      }
+
+      if( mb & RAR ){
+	short l = (ac & 01) ? 010000 : 0;
+	ac = (ac >> 1) | l;
+	if( mb & BSW ) {
+	  l = (ac & 01) ? 010000 : 0;
+	  ac = (ac >> 1) | l;
+	}
+      }
+
+      if( mb & RAL ) {
+	short l = (ac & 010000) ? 1 : 0;
+	ac = (ac << 1) | l;
+	if( mb & BSW ) {
+	  l = (ac & 010000) ? 1 : 0;
+	  ac = (ac << 1) | l;
+	}
+      }
+
+      if((mb & BSW)
+	 &&
+	 (!(mb & RAR) && !(mb & RAL)) ) {
+	   ac = ((ac & 07700) >> 6) | ((ac & 077) << 6) | (ac & 010000);
+      }
+    } else { // We are in group two OPR
+      if( mb & OPR_AND ){
+	char do_skip = 1;
+
+	if( mb & SPA && (ac & 04000) ){
+	  do_skip = 0;
+	}
+
+	if( mb & SNA && (ac & 07777) == 0 ){
+	  do_skip = 0;
+	}
+
+	if( mb & SZL && LINK ){
+	  do_skip = 0;
+	}
+
+	if( mb & CLA ){
+	  ac = ac & 010000;
+	}
+
+	if( do_skip ){
+	  pc = INC_PC(pc);
+	}
+
+      } else { // Or Group
+	char do_skip = 0;
+
+	if( mb & SMA && ac & 04000 ){
+	  do_skip = 1;
+	}
+
+	if( mb & SZA && ((ac & 07777) == 0) ){
+	  do_skip = 1;
+	}
+
+	if( mb & SNL && LINK ){
+	  do_skip = 1;
+	}
+
+	if( mb & CLA ){
+	  ac = ac & 010000;
+	}
+
+	if( do_skip ){
+	  pc = INC_PC(pc);
+	}
+
       }
       if( mb & HLT ){
+	cpma = (cpma + 1) & 07777;
 	return -1;
+      }
+
+      if( mb & OSR ){
+	ac = (ac & 010000) | sr;
       }
     }
     break;
   }
 
-  cpma = (cpma + 1) & 07777;
+  cpma = pc;
 
   return 0;
 }

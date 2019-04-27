@@ -157,21 +157,6 @@ char machine_run(char single)
       }
     }
   
-    if( cpu_process() == -1 ){
-      return 'H';
-    }
-
-    //    if( breakpoints[pc] & BREAKPOINT ){
-    //      return 'B';
-    //    }
-
-    if( internal_stop_at >= 0 && pc == internal_stop_at ){
-      return 'P';
-    }      
-
-    if( single ){
-      return 'S';
-    }
 
     if( trace_instruction ){
 #ifdef PTY_SRV
@@ -180,6 +165,22 @@ char machine_run(char single)
       // TODO handle this in console.c
       console_trace_instruction();
 #endif
+    }
+
+    if( cpu_process() == -1 ){
+      return 'H';
+    }
+
+    //    if( breakpoints[cpma] & BREAKPOINT ){
+    //      return 'B';
+    //    }
+
+    if( internal_stop_at >= 0 && cpma == internal_stop_at ){
+      return 'P';
+    }      
+
+    if( single ){
+      return 'S';
     }
   }
 #endif
@@ -425,6 +426,9 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
     }
     res = ac;
     break;
+  case CPMA:
+    res = cpma;
+    break;
   case PC:
     if( dep ){
       cpma = pc = val;
@@ -448,6 +452,10 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
   case SF:
     break;
   case SR:
+    if( dep ){
+      sr = val;
+    }
+    res = sr;
     break;
   case ION_FLAG:
     break;

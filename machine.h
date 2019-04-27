@@ -4,6 +4,7 @@
 typedef enum register_name {
   AC,
   PC,
+  CPMA,
   MQ,
   DF,
   IB,
