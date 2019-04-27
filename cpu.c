@@ -546,7 +546,7 @@ int cpu_process()
           // Swap ac and mq
           short tmp = mq & B12_MASK;
           mq = ac & AC_MASK;
-          ac = tmp;
+          ac = (ac & LINK_MASK) | tmp;
         } else {
           // Otherwise apply MQA or MQL separately
           if( cur & MQA ){
