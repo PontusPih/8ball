@@ -95,63 +95,85 @@ int cpu_process()
       if((mb & BSW)
 	 &&
 	 (!(mb & RAR) && !(mb & RAL)) ) {
-	   ac = ((ac & 07700) >> 6) | ((ac & 077) << 6) | (ac & 010000);
+	ac = ((ac & 07700) >> 6) | ((ac & 077) << 6) | (ac & 010000);
       }
-    } else { // We are in group two OPR
-      if( mb & OPR_AND ){
-	char do_skip = 1;
+    } else {
+      if( ! (mb & OPR_G3) ) {
+	// We are in group 2 OPR
+	if( mb & OPR_AND ){
+	  char do_skip = 1;
 
-	if( mb & SPA && (ac & 04000) ){
-	  do_skip = 0;
+	  if( mb & SPA && (ac & 04000) ){
+	    do_skip = 0;
+	  }
+
+	  if( mb & SNA && (ac & 07777) == 0 ){
+	    do_skip = 0;
+	  }
+
+	  if( mb & SZL && LINK ){
+	    do_skip = 0;
+	  }
+
+	  if( mb & CLA ){
+	    ac = ac & 010000;
+	  }
+
+	  if( do_skip ){
+	    pc = INC_PC(pc);
+	  }
+
+	} else { // Or Group
+	  char do_skip = 0;
+
+	  if( mb & SMA && ac & 04000 ){
+	    do_skip = 1;
+	  }
+
+	  if( mb & SZA && ((ac & 07777) == 0) ){
+	    do_skip = 1;
+	  }
+
+	  if( mb & SNL && LINK ){
+	    do_skip = 1;
+	  }
+
+	  if( mb & CLA ){
+	    ac = ac & 010000;
+	  }
+
+	  if( do_skip ){
+	    pc = INC_PC(pc);
+	  }
+
+	}
+	if( mb & HLT ){
+	  cpma = (cpma + 1) & 07777;
+	  return -1;
 	}
 
-	if( mb & SNA && (ac & 07777) == 0 ){
-	  do_skip = 0;
+	if( mb & OSR ){
+	  ac = (ac & 010000) | sr;
 	}
-
-	if( mb & SZL && LINK ){
-	  do_skip = 0;
-	}
-
+      } else { // We are in group 3
 	if( mb & CLA ){
 	  ac = ac & 010000;
 	}
 
-	if( do_skip ){
-	  pc = INC_PC(pc);
+	if( (mb & MQA) && (mb &MQL) ){
+	  short tmp = mq & 07777;
+	  mq = ac & 07777;
+	  ac = (ac & 010000) | tmp;
+	} else {
+	  if( mb & MQA ){
+	    ac = ac | (mq & 07777);
+	  }
+
+	  if( mb & MQL ){
+	    mq = ac & 07777;
+	    ac = ac & 010000;
+	  }
 	}
-
-      } else { // Or Group
-	char do_skip = 0;
-
-	if( mb & SMA && ac & 04000 ){
-	  do_skip = 1;
-	}
-
-	if( mb & SZA && ((ac & 07777) == 0) ){
-	  do_skip = 1;
-	}
-
-	if( mb & SNL && LINK ){
-	  do_skip = 1;
-	}
-
-	if( mb & CLA ){
-	  ac = ac & 010000;
-	}
-
-	if( do_skip ){
-	  pc = INC_PC(pc);
-	}
-
-      }
-      if( mb & HLT ){
-	cpma = (cpma + 1) & 07777;
-	return -1;
-      }
-
-      if( mb & OSR ){
-	ac = (ac & 010000) | sr;
       }
     }
     break;
