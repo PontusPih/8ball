@@ -121,10 +121,30 @@
     SWP
 
     AND
+
+    IOT for Teleprinter: TLS and TSF
+
+            00 01 02 03 04 05 06 07 08 09 10 11
+            ___________________________________
+           | 1| 1| 0|  |  |  |  |  |  |  |  |  |
+           |__|__|__|__|__|__|__|__|__|__|__|__|
+           |        |                 |        |
+           |  IOT   |      Device     |   Op   |
+
+    Device codes for TP is 03
+    Most devices will have a status bit that indicates if an operation is done.
+
+    And that should include the first test suite! Almost! AC is not right. Looks like we need JMP
+
+    JMP
+
+    Argh!! what happened now. We need DCA! (tests tries to wrap arround one address)
+
+    DCA
+
     ISZ
     DCA
     JMS
-    JMP
 
 8. Implement
     OPR

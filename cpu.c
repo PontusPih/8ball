@@ -27,7 +27,7 @@ void cpu_init(void){
   for(int i=0; i < MEMSIZE; i++){
     mem[i] = 0;
   }
-  ac = pc = cpma = mb = ir = mq = sr = 0;
+  ac = pc = cpma = mb = ir = mq = sr = tty_tp_flag = tty_kb_flag = 0;
 }
 
 int cpu_process()
@@ -37,21 +37,51 @@ int cpu_process()
   ir = mb & 07000;
 
   short operand = 0;
- 
+  short operand_addr = 0;
   if( ir <= 05000 ){
     if( ! (mb & Z_MASK) ){
       cpma = cpma & 0177;
     }
-    short operand_addr = (cpma & 07600) + (mb & 0177);
-    operand = mem[operand_addr];
+    operand_addr = (cpma & 07600) + (mb & 0177);
+    operand = mem[operand_addr] & 07777;
   }
   
   switch( ir ) {
 
+  case AND:
+    ac = (ac & 010000) | (ac & operand);
+    break;
   case TAD:
     ac = (ac + operand) & 017777;
     break;
-
+  case DCA:
+    mb = ac & 07777;
+    ac = ac & 010000;
+    mem[operand_addr] = mb;
+    break;
+  case JMP:
+    cpma = operand_addr;
+    return 0;
+  case IOT:
+    switch( mb & 0770 ) {
+    case 030:
+      switch( mb & 07 ){
+      case TLS:
+	tty_tp_flag = 0;
+	tty_tp_buf = ac & 0377;
+	break;
+      case TSF:
+	if( tty_tp_flag ){
+	  pc = INC_PC(pc);
+	}
+	break;
+      }
+      break;
+    default:
+      // NOP
+      break;
+    }
+    break;
   case OPR:
     if( ! (mb & OPR_G2) ){ // Group 1
       if( mb & CLA ){
