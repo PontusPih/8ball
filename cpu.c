@@ -58,6 +58,13 @@ int cpu_process()
   case TAD:
     ac = (ac + operand) & 017777;
     break;
+  case ISZ:
+    operand = (operand + 1) & 07777;
+    mem[operand_addr] = operand;
+    if( operand == 0 ){
+      pc = INC_PC(pc);
+    }
+    break;
   case DCA:
     mb = ac & 07777;
     ac = ac & 010000;
