@@ -45,6 +45,9 @@ int cpu_process()
     operand_addr = (cpma & 07600) + (mb & 0177);
 
     if( mb & I_MASK ){
+      if( operand_addr >= 010 && operand_addr <= 017 ){
+	mem[operand_addr] = (mem[operand_addr] + 1) & 07777;
+      }
       operand_addr = mem[operand_addr] & 07777;
     }
     operand = mem[operand_addr] & 07777;

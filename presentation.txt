@@ -156,8 +156,8 @@
 
 9. ISZ
 
-10. 
-    DCA
+10. Implement autoindexing
+
     JMS
 
 10. Run Tetris
