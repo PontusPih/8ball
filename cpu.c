@@ -73,6 +73,11 @@ int cpu_process()
     ac = ac & 010000;
     mem[operand_addr] = mb;
     break;
+  case JMS:
+    mb = pc;
+    pc = (operand_addr + 1) & 07777;
+    mem[operand_addr] = mb; 
+    break;
   case JMP:
     cpma = operand_addr;
     return 0;
