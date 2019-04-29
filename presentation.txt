@@ -106,6 +106,9 @@
 
 5. Implement "defer"
 
+6. Run test:
+
+./8ball --restore tests/maindec-8e-d0ab-pb.core --stop_at 05314 
 
 7. Implement
     HLT
@@ -142,15 +145,20 @@
 
     DCA
 
-    ISZ
+    Hmm, that went to easy? We need TLS and TSF. Again I have "TV-kockat"
+    It is needed because the tests will output "BELL" at successful end of test
+
+    Now, lets run the next set of tests.
+
+    ./8ball --restore tests/maindec-8e-d0bb-pb.core --stop_at 03745
+
+8. Implement indirect addressing
+
+9. ISZ
+
+10. 
     DCA
     JMS
-
-8. Implement
-    OPR
-
-9. Implement
-    IOT
 
 10. Run Tetris
 

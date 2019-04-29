@@ -43,6 +43,10 @@ int cpu_process()
       cpma = cpma & 0177;
     }
     operand_addr = (cpma & 07600) + (mb & 0177);
+
+    if( mb & I_MASK ){
+      operand_addr = mem[operand_addr] & 07777;
+    }
     operand = mem[operand_addr] & 07777;
   }
   
