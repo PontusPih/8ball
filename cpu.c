@@ -64,11 +64,12 @@ int cpu_process()
     return 0;
   case IOT:
     switch( mb & 0770 ) {
-    case 030:
+    case 040:
       switch( mb & 07 ){
       case TLS:
-	tty_tp_flag = 0;
 	tty_tp_buf = ac & 0377;
+	tty_initiate_output();
+	tty_tp_flag = 0;
 	break;
       case TSF:
 	if( tty_tp_flag ){
