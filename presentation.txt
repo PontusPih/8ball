@@ -150,7 +150,7 @@
 
     Now, lets run the next set of tests.
 
-    ./8ball --restore tests/maindec-8e-d0bb-pb.core --stop_at 03745
+    ./8ball --restore tests/maindec-8e-d0bb-pb.core --stop_at 04211
 
 8. Implement indirect addressing
 
@@ -161,8 +161,6 @@
 11. Implement subroutines! (JMS)
 
 Show gems in MAINDEC-8E-D0BB.pdf page 01-32 and 01-33 (37 and 38): "works a little" and "I guess"
-
-12. TODO: Implement CAF
 
 10. Run Tetris
 

@@ -28,6 +28,7 @@ void cpu_init(void){
     mem[i] = 0;
   }
   ac = pc = cpma = mb = ir = mq = sr = tty_tp_flag = tty_kb_flag = 0;
+#include "rimloader.h"
 }
 
 int cpu_process()
@@ -83,10 +84,36 @@ int cpu_process()
     return 0;
   case IOT:
     switch( mb & 0770 ) {
+    case 030:
+      switch( mb & 07 ){
+      case KCF:
+	tty_kb_flag = 0;
+	break;
+      case KSF:
+	if( tty_kb_flag ){
+	  pc = INC_PC(pc);
+	}
+	break;
+      case KCC:
+	tty_kb_flag = 0;
+	ac = ac & 010000;
+	break;
+      case KRS:
+	ac = ac | (tty_kb_buf & 0377);
+	break;
+      case KRB:
+	tty_kb_flag = 0;
+	ac = ac & 010000;
+	ac = ac | (tty_kb_buf & 0377);
+	break;
+      default:
+	break;
+      }
+      break;
     case 040:
       switch( mb & 07 ){
       case TLS:
-	tty_tp_buf = ac & 0377;
+	tty_tp_buf = ac & 0177;
 	tty_initiate_output();
 	tty_tp_flag = 0;
 	break;
