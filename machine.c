@@ -381,7 +381,7 @@ short machine_operand_addr(short addr, char examine)
   recv_cmd(pts, &rbuf);
   return buf2short(rbuf, 0);
 #else
-  return indirect_addr(addr, examine);
+  return 0; // indirect_addr(addr, examine);
 #endif
 }
 
@@ -395,7 +395,7 @@ short machine_direct_addr(short addr)
   recv_cmd(pts, &rbuf);
   return buf2short(rbuf, 0);
 #else
-  return direct_addr(addr);
+  return 0; //direct_addr(addr);
 #endif
 }
 

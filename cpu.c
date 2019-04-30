@@ -13,21 +13,12 @@ short sr;
 // Memory
 short mem[MEMSIZE];
 
-// Direct addressing
-short direct_addr(short pc){
-  return 0;
-}
-
-// Indirect addressing and auto index
-short indirect_addr(short pc, char examine){
-  return 0;
-}
-
 void cpu_init(void){
   for(int i=0; i < MEMSIZE; i++){
     mem[i] = 0;
   }
-  ac = pc = cpma = mb = ir = mq = sr = tty_tp_flag = tty_kb_flag = 0;
+  ac = pc = cpma = mb = ir = mq = sr = 0;
+  tty_tp_flag = tty_kb_flag = 0;
 #include "rimloader.h"
 }
 
@@ -125,7 +116,6 @@ int cpu_process()
       }
       break;
     default:
-      // NOP
       break;
     }
     break;
@@ -175,9 +165,8 @@ int cpu_process()
 	ac = ((ac & 07700) >> 6) | ((ac & 077) << 6) | (ac & 010000);
       }
     } else {
-      if( ! (mb & OPR_G3) ) {
-	// We are in group 2 OPR
-	if( mb & OPR_AND ){
+      if( ! (mb & OPR_G3) ) { // Group 2
+	if( mb & OPR_AND ){ // And Group
 	  char do_skip = 1;
 
 	  if( mb & SPA && (ac & 04000) ){
@@ -232,7 +221,7 @@ int cpu_process()
 	if( mb & OSR ){
 	  ac = (ac & 010000) | sr;
 	}
-      } else { // We are in group 3
+      } else { // Group 3
 	if( mb & CLA ){
 	  ac = ac & 010000;
 	}
@@ -255,8 +244,6 @@ int cpu_process()
     }
     break;
   }
-
   cpma = pc;
-
   return 0;
 }

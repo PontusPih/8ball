@@ -111,7 +111,7 @@ void console_trace_instruction()
 void print_instruction(short pc)
 { 
   short cur = machine_examine_mem(pc);
-  short addr = machine_operand_addr(pc, 1);
+  //  short addr = machine_operand_addr(pc, 1);
 
   printf("%.5o  %.4o", pc, cur);
 
@@ -144,13 +144,13 @@ void print_instruction(short pc)
     }
 
     if( cur & I_MASK ){
-      printf(" I %.5o (%.5o)", machine_direct_addr(pc), addr);
+      printf(" I "); // %.5o (%.5o)", machine_direct_addr(pc), addr);
     } else {
-      printf("   %.5o", addr);
+      //printf("   %.5o", addr);
     }
 
     if( (cur & IF_MASK) < JMS ){
-      printf(" [%.4o]", machine_examine_mem(addr));
+      //printf(" [%.4o]", machine_examine_mem(addr));
     }
 
   } else {
