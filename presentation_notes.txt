@@ -39,7 +39,7 @@
 
 5. Picture of state diagram
     - Let's return to the state diagram
-       - a memory cycle will read, do something and write
+       - a memory cycle will read, do something and write (due to core memory)
        - JMP, IOT and OPR are one cycle only
        - Others are one _or_ two
 
@@ -185,7 +185,7 @@
 
 16. Implement subroutines! (JMS)
 
-Show gems in MAINDEC-8E-D0BB.pdf page 01-32 and 01-33 (37 and 38): "works a little" and "I guess"
+Show gems in MAINDEC-8E-D0BB.pdf page 01-32 and 01-33 (37 and 38): "works a little" and "I guess"
 
 17. Implement Keyboard! (tv-kocka)
 
