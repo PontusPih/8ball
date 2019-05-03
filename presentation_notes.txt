@@ -1,10 +1,24 @@
 1. Picture of Straight-8
 
+   - Introduced March 22nd 1965
+   - 8/s was a later and failed machine
+   - These handbooks are quite wonderful, for instance:
+
 2. Picture of funny pants
 
-3. Picture of Block diagram (SmallComputerHandbook_Mar67.pdf page 16 (25))
-   
-   - This is what we will implement today
+   - Lets enjoy the selection of different stripes
+
+3. Picture of Block diagram
+
+   - During this talk we will implement an emulator for this!
+     - MA points out next instruction, and then effective address
+     - Instruction loaded and drives the state generator
+     - More on state generator later
+     - Operand address calculated
+     - MB may populate AC, PC or MA
+     - (Notice arrows should go both ways)
+     - AC architecture
+
    - Not in this picture:
       - Interrupts
       - Data breaks (DMA)
@@ -13,11 +27,23 @@
 
 4. Shortcuts!
     - console
+      - examine/deposit memory
+      - examine/deposit registers
+      - dissasembler
+      - load state
+      
     - rimloader/binloader
     - defines galore
     - maindecs
+    - test framework
 
-5. Picture of state diagram (Small_Computer_Handbook_1973.pdf page 3-18 (127))
+5. Picture of state diagram
+    - Let's return to the state diagram
+       - a memory cycle will read, do something and write
+       - JMP, IOT and OPR are one cycle only
+       - Others are one _or_ two
+
+    -> Lets get into implementation ->
 
 6. Registers:
     AC
@@ -50,8 +76,7 @@
 9. Fun stuff first: OPR
 
    OPR is divided into three groups. Which is decided by
-   bit 3 and 11.
-   
+   bit 3, 8 and 11.
 
    Group 1
 
@@ -106,13 +131,11 @@
 
                          1  2  2  2     3
 
-10. Implement "defer"
-
-11. Run test:
+10. Run test:
 
 ./8ball --restore tests/maindec-8e-d0ab-pb.core --stop_at 05314 
 
-12. Implement
+11. Implement
     HLT
     SMA SZA SNL
     SPA SNA SZL
@@ -127,6 +150,17 @@
 
     AND
 
+    And that should include the first test suite! Almost! AC is not right. Looks like we need JMP
+
+    JMP
+
+    Argh!! what happened now. We need DCA! (tests tries to wrap arround one address)
+
+    DCA
+
+    Hmm, that went to easy? We need TLS and TSF.
+    It is needed because the tests will output "BELL" at successful end of test
+
     IOT for Teleprinter: TLS and TSF
 
             00 01 02 03 04 05 06 07 08 09 10 11
@@ -136,19 +170,8 @@
            |        |                 |        |
            |  IOT   |      Device     |   Op   |
 
-    Device codes for TP is 03
+    Device codes for TP is 04
     Most devices will have a status bit that indicates if an operation is done.
-
-    And that should include the first test suite! Almost! AC is not right. Looks like we need JMP
-
-    JMP
-
-    Argh!! what happened now. We need DCA! (tests tries to wrap arround one address)
-
-    DCA
-
-    Hmm, that went to easy? We need TLS and TSF. Again I have "TV-kockat"
-    It is needed because the tests will output "BELL" at successful end of test
 
     Now, lets run the next set of tests.
 
@@ -164,9 +187,13 @@
 
 Show gems in MAINDEC-8E-D0BB.pdf page 01-32 and 01-33 (37 and 38): "works a little" and "I guess"
 
-17. Run Tetris
+17. Implement Keyboard! (tv-kocka)
 
-18. Next steps
+18. binloader
+
+19. Run Tetris
+
+20. Next steps
     - Interrupts
     - Mass storage device (RK05)
     - Extended memory
