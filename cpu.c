@@ -27,7 +27,7 @@ short sf = 0; // save field
 short df = 0; // data field
 short intr_inhibit = 0; // interrupt inhibit flag
 // Time share registers
-short uf = 0; // User Field
+short uf = 0; // User Flag
 short ub = 0; // User Buffer
 // TODO remove rtf_delay
 short rtf_delay = 0; //ion will be set after next fetch
@@ -218,12 +218,14 @@ int cpu_process()
         }
         break;
       case GTF:
-        // TODO add more fields as support is added. (GT)
+        // TODO add more fields as support is added. (GT to AC1)
+        // Small Computer Handbook from -73 says intr_inhibit is saved
+        // by GTF. But MAINDEC-8E-D1HA explicitly tests the opposite.
         ac = (ac & LINK_MASK) | // preserve LINK
           (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | ((intr & UINTR_FLAG ? 1:0) << 6) | sf;
         break;
       case RTF:
-        // RTF allways sets ION irregardles of the ION bit in AC.
+        // RTF allways sets ION irregardless of the ION bit in AC.
         ion = 1;
         intr_inhibit = 1;
         ac = ((ac << 1) & LINK_MASK) | (ac & AC_MASK); //restore LINK bit.
@@ -315,8 +317,8 @@ int cpu_process()
         break;
       }
       break;
-    case 020:
-    case 021:
+    case 020: // Memory Management instructions, the last three bits
+    case 021: // is the memory field being read or set.
     case 022:
     case 023:
     case 024:
@@ -324,7 +326,7 @@ int cpu_process()
     case 026:
     case 027:
       switch( mb & IOT_OP_MASK ){
-      case CDF:
+      case CDF: // Change field instructions
       case CIF:
       case CDI:
         {
