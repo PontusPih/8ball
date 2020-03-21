@@ -102,8 +102,8 @@ int cpu_process()
     cpma = 0;
     ion = 0;
     // Save KM8E registers
-    sf = ((intr & UINTR_FLAG ? 1 : 0) << 6) | (pc & FIELD_MASK) >> 9 | df;
-    pc = pc & B12_MASK;
+    sf = (uf << 6) | (pc & FIELD_MASK) >> 9 | df;
+    pc = pc & B12_MASK; // Clear the field bits
     df = ib = 0;
     uf = ub = 0;
   } else {
@@ -222,7 +222,7 @@ int cpu_process()
         // Small Computer Handbook from -73 says intr_inhibit is saved
         // by GTF. But MAINDEC-8E-D1HA explicitly tests the opposite.
         ac = (ac & LINK_MASK) | // preserve LINK
-          (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | ((intr & UINTR_FLAG ? 1:0) << 6) | sf;
+          (LINK << 11) | ((intr ? 1:0) << 9) | (ion << 7) | sf; // Remember that UF stored in SF on an 8/E
         break;
       case RTF:
         // RTF allways sets ION irregardless of the ION bit in AC.
