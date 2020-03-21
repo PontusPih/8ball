@@ -100,7 +100,9 @@ int cpu_process()
     // An interrupt occured, disable interrupts, force JMS to 0000
     mb = JMS;
     cpma = 0;
-    ion = 0;
+    // ion_delay is zeroed to prevent a just executed ION to turn on
+    // interrupts in the middle of an interrupt handler.
+    ion = ion_delay = 0;
     // Save KM8E registers
     sf = (uf << 6) | (pc & FIELD_MASK) >> 9 | df;
     pc = pc & B12_MASK; // Clear the field bits
@@ -133,7 +135,6 @@ int cpu_process()
   }
 
   if( ion_delay ){
-    // BUG? TODO What if an interrupt occurs between two ION instructions?
     // ION is not set until the following instruction has been
     // fetched.
     ion = 1;
