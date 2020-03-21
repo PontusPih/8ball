@@ -222,6 +222,44 @@ set. Sadly the /i and /l doesn't implement the GTF, RTF, and CAF that
 I've had troubles with. I will however crossreference with this book
 when I implement EAE and other peripherals.
 
+Update 20-MAR-2020
+
+Yikes, I haven't updated this log in four years! But things have
+happened in that time. Mostly I have focused on splitting the code for
+handling the CPU and handling the console input into different
+process. The idea being that the CPU should be able to run on a
+microcontroller and the console being handled on a different computer
+with a serial connection to the microcontroller.
+
+After that I have taken a break and implemented a game for the PDP-8
+in PAL-8 assembly. Check it out: https://github.com/PontusPih/TINT8
+
+That was most of 2017, in 2018 I didn't do much PDP-8 related at all.
+In 2019 I gave a presentation at Update where I reimplemented a basic
+non-expanded PDP-8 cpu in front of a live audience. It was a lot of
+fun. Although it took much longer than anticipated, close to two hours.
+
+During the fall of 2019 I've helped out a collegue who is implementing
+his own PDP-8 emulator. It's been a lot of fun and the urge to hack
+away at my own emulator has come back :)
+
+First, some small changes:
+
+Previously the code used "cur" as variable name for the current
+instruction. In the real PDP-8 hardware it is stored in the memory
+buffer, MB, which all documentation refers to. To avoid confusion I
+renamed the variable to plain "mb".
+
+Also the code used "addr" as variable name for the current memory
+address being referenced by instructions. The real hardware uses the
+Central Processor Memory Address, CPMA, so "addr" is renamed to
+"cpma".
+
+I want to restructure the code a bit to make sections reflect the
+"time states" in which a PDP-8 processor executes. There is no real
+purpose other than being one step closer to a hardware implementation.
+
+
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
 [3] http://www.ultimate.com/phil/xy/

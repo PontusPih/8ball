@@ -12,6 +12,8 @@
 // TODO implement "clear" command that initializes these variables,
 // just like the clear switch on a real front panel.
 // CPU registers
+short mb = 0; // Memory Buffer
+short cpma = 0; // Central Processor Memory Address
 short pc = 0200; // Program Counter (and Instruction Field, if)
 short ac = 0; // Acumulator
 short mq = 0; // Multiplier Quotient
@@ -94,28 +96,10 @@ void cpu_raise_interrupt(short flag)
 
 int cpu_process()
 {
-  short cur = *(mem+pc); // Much like MB register
-  short addr = -1; // Much like CPMA register
-  if( (cur & IF_MASK) <= JMP ){
-    // Only calculate addr if the current instruction is a Memory
-    // Referencing Instruction (MRI). Otherwise an instruction that
-    // happens to address an autoindexing location _and_ have the
-    // indirect bit set (e.g. 6410) will ruin that location.
-    addr = operand_addr(pc, 0);
-  }
-  // TODO add watch on memory cells
-
-  if( (cur & I_MASK) && (cur & IF_MASK) < JMS ){
-    // For indirect AND, TAD, ISZ and DCA the field is set by DF.
-    // For JMP and JMS it is already set by IF.
-    // For IOT and OPR it doesn't matter.
-    addr = (addr & B12_MASK) | (df << 12);
-  }
-
   if( ion && intr && (! intr_inhibit) ){
     // An interrupt occured, disable interrupts, force JMS to 0000
-    cur = JMS;
-    addr = 0;
+    mb = JMS;
+    cpma = 0;
     ion = 0;
     // Save KM8E registers
     sf = ((intr & UINTR_FLAG ? 1 : 0) << 6) | (pc & FIELD_MASK) >> 9 | df;
@@ -123,6 +107,25 @@ int cpu_process()
     df = ib = 0;
     uf = ub = 0;
   } else {
+    // No interrupt, enter TS1 of FETCH major state
+    mb = *(mem+pc);
+
+    if( (mb & IF_MASK) <= JMP ){
+      // Only calculate cpma if the current instruction is a Memory
+      // Referencing Instruction (MRI). Otherwise an instruction that
+      // happens to address an autoindexing location _and_ have the
+      // indirect bit set (e.g. 6410) will ruin that location.
+      cpma = operand_addr(pc, 0);
+    }
+    // TODO add watch on memory cells
+
+    if( (mb & I_MASK) && (mb & IF_MASK) < JMS ){
+      // For indirect AND, TAD, ISZ and DCA the field is set by DF.
+      // For JMP and JMS it is already set by IF.
+      // For IOT and OPR it doesn't matter.
+      cpma = (cpma & B12_MASK) | (df << 12);
+    }
+
     // Don't increment PC in case of an interrupt. An interrupt
     // actually occurs at the end of an execution cycle, before
     // the next fetch cycle.
@@ -145,58 +148,58 @@ int cpu_process()
   }
 
 
-  switch( cur & IF_MASK ){
+  switch( mb & IF_MASK ){
   case AND:
     // AND AC and operand, preserve LINK.
-    ac &= (mem[addr] | LINK_MASK);
+    ac &= (mem[cpma] | LINK_MASK);
     break;
   case TAD:
     // Two complements add of AC and operand.
     // TODO: Sign extension
-    ac = (ac + mem[addr]) & LINK_AC_MASK;
+    ac = (ac + mem[cpma]) & LINK_AC_MASK;
     break;
   case ISZ:
     // Skip next instruction if operand is zero.
-    mem[addr] = INC_12BIT(mem[addr]);
-    if( mem[addr] == 0 ){
+    mem[cpma] = INC_12BIT(mem[cpma]);
+    if( mem[cpma] == 0 ){
       pc = INC_PC(pc);
     }
     break;
   case DCA:
     // Deposit and Clear AC
-    mem[addr] = (ac & AC_MASK);
+    mem[cpma] = (ac & AC_MASK);
     ac = (ac & LINK_MASK);
     break;
   case JMS:
     if( intr_inhibit ){
       // restore IF and UF
       pc = (ib << 12) | (pc & B12_MASK);
-      addr = (ib << 12) | (addr & B12_MASK);
+      cpma = (ib << 12) | (cpma & B12_MASK);
       uf = ub;
       intr_inhibit = 0;
     }
     // Jump and store return address.
-    mem[addr] = (pc & B12_MASK);
-    pc = (pc & FIELD_MASK) | INC_12BIT(addr);
+    mem[cpma] = (pc & B12_MASK);
+    pc = (pc & FIELD_MASK) | INC_12BIT(cpma);
     break;
   case JMP:
     if( intr_inhibit ){
       // restore IF and UF
-      addr = (ib << 12) | (addr & B12_MASK);
+      cpma = (ib << 12) | (cpma & B12_MASK);
       uf = ub;
       intr_inhibit = 0;
     }
     // Unconditional Jump
-    pc = addr;
+    pc = cpma;
     break;
   case IOT:
     if( uf ){ // IOT is a privileged instruction, interrupt
       intr |= UINTR_FLAG;
       break;
     }
-    switch( (cur & DEV_MASK) >> 3 ){
+    switch( (mb & DEV_MASK) >> 3 ){
     case 00: // Interrupt control
-      switch( cur & IOT_OP_MASK ){
+      switch( mb & IOT_OP_MASK ){
       case SKON:
         if( ion ){
           pc = INC_PC(pc);
@@ -241,7 +244,7 @@ int cpu_process()
       break;
       // KL8E (device code 03 and 04)
     case 03: // Console tty input
-      switch( cur & IOT_OP_MASK ){
+      switch( mb & IOT_OP_MASK ){
       case KCF:
         tty_kb_flag = 0;
         intr = intr & ~TTYI_INTR_FLAG;
@@ -275,7 +278,7 @@ int cpu_process()
       }
       break;
     case 04: // Console tty output
-      switch( cur & IOT_OP_MASK ){
+      switch( mb & IOT_OP_MASK ){
       case TFL:
         tty_tp_flag = 1;
         if( tty_dcr & TTY_IE_MASK ){
@@ -320,13 +323,13 @@ int cpu_process()
     case 025:
     case 026:
     case 027:
-      switch( cur & IOT_OP_MASK ){
+      switch( mb & IOT_OP_MASK ){
       case CDF:
       case CIF:
       case CDI:
         {
-          short field = (cur & MMU_DI_MASK) >> 3;
-          short iot = cur & IOT_OP_MASK;
+          short field = (mb & MMU_DI_MASK) >> 3;
+          short iot = mb & IOT_OP_MASK;
           if( iot & CDF ){
             df = field;
           }
@@ -338,7 +341,7 @@ int cpu_process()
         }
         break;
       case 04: // READ instruction group
-        switch( cur & MMU_DI_MASK ){
+        switch( mb & MMU_DI_MASK ){
         case CINT:
           intr &= ~UINTR_FLAG;
           break;
@@ -384,7 +387,7 @@ int cpu_process()
       break;
     default:
       // TODO optionally go to console
-      //printf("IOT to unknown device: %.3o. Treating as NOP\n", (cur & DEV_MASK) >> 3);
+      //printf("IOT to unknown device: %.3o. Treating as NOP\n", (mb & DEV_MASK) >> 3);
       // DEV 01 High speed paper tape reader
       // DEV 02 High speed paper tape punch
       // DEV 10
@@ -394,37 +397,37 @@ int cpu_process()
     }
     break;
   case OPR:
-    if( ! (cur & OPR_G2) ){
+    if( ! (mb & OPR_G2) ){
       // Group one
-      if( cur & CLA ){
+      if( mb & CLA ){
         // CLear Accumulator
         ac &= LINK_MASK; 
       }
 
-      if( cur & CLL ){
+      if( mb & CLL ){
         // CLear Link
         ac &= AC_MASK;
       }
 
-      if( cur & CMA ){
+      if( mb & CMA ){
         // Complement AC
         ac = ac ^ AC_MASK;
       }
  
-      if( cur & CML ){
+      if( mb & CML ){
         // Complement Link
         ac = ac ^ LINK_MASK;
       }
 
-      if( cur & IAC ){
+      if( mb & IAC ){
         // Increment ACcumulator and LINK
         ac = (ac+1) & LINK_AC_MASK;
       }
 
-      if( cur & RAR ){
+      if( mb & RAR ){
         // Rotate Accumulator Right
         char i = 1;
-        if( cur & BSW ){
+        if( mb & BSW ){
           // Rotate Twice Right (RTR)
           i = 2;
         }
@@ -439,10 +442,10 @@ int cpu_process()
         }
       }
 
-      if( cur & RAL ){
+      if( mb & RAL ){
         // Rotate Accumulator Left
         char i = 1;
-        if( cur & BSW ){
+        if( mb & BSW ){
           // Rotate Twice Left (RTL)
           i = 2;
         }
@@ -457,39 +460,39 @@ int cpu_process()
         }
       }
 
-      if( ( cur & (RAR|RAL|BSW) ) == BSW ){
+      if( ( mb & (RAR|RAL|BSW) ) == BSW ){
         // Byte Swap.
         short msb = (ac & 07700) >> 6;
         short lsb = (ac & 00077) << 6;
         ac = (ac & LINK_MASK) | msb | lsb;
       }
 
-      // TODO if RTR|RTL then AC = link | addr & 7600 + cur & 0177
-      // TODO if RAR|RAL then AC = link | cur
+      // TODO if RTR|RTL then AC = link | cpma & 7600 + mb & 0177
+      // TODO if RAR|RAL then AC = link | mb
 
     } else {
-      if( ! (cur & OPR_G3 ) ){
+      if( ! (mb & OPR_G3 ) ){
         // Group two
-        if( ! (cur & OPR_AND) ) {
+        if( ! (mb & OPR_AND) ) {
           // OR group
           char do_skip = 0;
 
-          if( cur & SMA && ac & SIGN_BIT_MASK ){
+          if( mb & SMA && ac & SIGN_BIT_MASK ){
             // Skip if Minus Accumulator
             do_skip = 1;
           }
 
-          if( cur & SZA && ! (ac & AC_MASK) ){
+          if( mb & SZA && ! (ac & AC_MASK) ){
             // Skip if Zero Accumulator
             do_skip = 1;
           }
 
-          if( cur & SNL && (ac & LINK_MASK ) ){
+          if( mb & SNL && (ac & LINK_MASK ) ){
             // Skip if Nonzero Link
             do_skip = 1;
           }
  
-          if( cur & CLA ){
+          if( mb & CLA ){
             // CLear Accumulator
             ac = ac & LINK_MASK;
           }
@@ -506,25 +509,25 @@ int cpu_process()
           char sna_skip = 1;
           char szl_skip = 1;
 
-          if( cur & SPA && ac & SIGN_BIT_MASK ){
+          if( mb & SPA && ac & SIGN_BIT_MASK ){
             // Skip if Positive Accumulator
             // Test for negative accumulator
             spa_skip = 0;
           }
 
-          if( cur & SNA && !(ac & AC_MASK) ){
+          if( mb & SNA && !(ac & AC_MASK) ){
             // Skip if Nonzero Accumulator
             // Test for zero accumlator
             sna_skip = 0;
           }
 
-          if( cur & SZL && ac & LINK_MASK ){
+          if( mb & SZL && ac & LINK_MASK ){
             // Skip if Zero Link
             // Test for nonzero link
             szl_skip = 0;
           }
 
-          if( cur & CLA ){
+          if( mb & CLA ){
             // CLear Accumulator
             ac = ac & LINK_MASK;
           }
@@ -533,35 +536,35 @@ int cpu_process()
             pc = INC_PC(pc);
           }
         }
-        if( uf && ( cur & (OSR | HLT) ) ){ // OSR & HLT is privileged instructions, interrupt
+        if( uf && ( mb & (OSR | HLT) ) ){ // OSR & HLT is privileged instructions, interrupt
           intr |= UINTR_FLAG;
           break;
         }
-        if( cur & OSR ){
+        if( mb & OSR ){
           ac |= sr;
         }
-        if( cur & HLT ){
+        if( mb & HLT ){
           return -1;
         }
       } else {
         // Group Three
-        if( cur & CLA ){
+        if( mb & CLA ){
           // CLear Accumulator
           ac = ac & LINK_MASK;
         }
 
-        if( (cur & MQA) && (cur & MQL) ){
+        if( (mb & MQA) && (mb & MQL) ){
           // Swap ac and mq
           short tmp = mq & B12_MASK;
           mq = ac & AC_MASK;
           ac = (ac & LINK_MASK) | tmp;
         } else {
           // Otherwise apply MQA or MQL separately
-          if( cur & MQA ){
+          if( mb & MQA ){
             ac = ac | (mq & B12_MASK);
           }
 
-          if( cur & MQL ){
+          if( mb & MQL ){
             mq = ac & AC_MASK;
             ac = ac & LINK_MASK;
           }
