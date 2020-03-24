@@ -1,0 +1,38 @@
+##
+#  WARNING! Edit this file with an editor sensitive to CR+LF line
+#  endings!  The maindec tests emits CR+LF instead of just LF as some
+#  editors will assume.
+##
+
+# 1. RX8E interface only test (SR set to 7000)
+./8ball --restore tests/maindec-08-dirxa-d-pb-interface.core --exit_on_HLT --run
+>>>
+
+ >>> STOP AT <<<
+PC = 5314 AC = 207 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 7000 ION = 0 INHIB = 0
+>>>= 0
+# 2. RX8E interface only test, state check
+diff prev.core tests/maindec-08-dirxa-d-pb-interface.prev.core
+>>>=0
+
+# 3. RX8E interface and controller test (SR set to 6000)
+./8ball --restore tests/maindec-08-dirxa-d-pb-interface-controller.core --exit_on_HLT --run
+>>>
+
+ >>> STOP AT <<<
+PC = 5314 AC = 207 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 6000 ION = 0 INHIB = 0
+>>>= 0
+# 4. RX8E interface and controller test, state check
+diff prev.core tests/maindec-08-dirxa-d-pb-interface-controller.prev.core
+>>>=0
+
+# 5. RX8E interface, controller and drives test (SR set to 0000)
+./8ball --restore tests/maindec-08-dirxa-d-pb-interface-controller-drives.core --exit_on_HLT --run
+>>>
+
+ >>> STOP AT <<<
+PC = 5314 AC = 207 MQ = 0 DF = 0 IB = 0 U = 0 SF = 0 SR = 0000 ION = 0 INHIB = 0
+>>>= 0
+# 6. RX8E interface, controller and drives test, state check
+diff prev.core tests/maindec-08-dirxa-d-pb-interface-controller-drives.prev.core
+>>>=0
