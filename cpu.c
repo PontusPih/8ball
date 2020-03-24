@@ -8,6 +8,7 @@
 
 #include "cpu.h"
 #include "tty.h"
+#include "rx8.h"
 
 // TODO implement "clear" command that initializes these variables,
 // just like the clear switch on a real front panel.
@@ -387,6 +388,16 @@ int cpu_process()
         //printf("IOT unsupported memory management instruction: NOP\n");
         break;
       }
+      break;
+    case 070:
+    case 071:
+    case 072:
+    case 073:
+    case 074:
+    case 075: // Default RX8
+    case 076:
+    case 077:
+      rx8_process(mb);
       break;
     default:
       // TODO optionally go to console
