@@ -68,7 +68,7 @@ void cpu_raise_interrupt(short flag);
 #define TTYO_INTR_FLAG INTR(0)
 #define TTYI_INTR_FLAG INTR(1)
 #define UINTR_FLAG INTR(2)
-#define RX8_INTR_FLAG INTR(3)
+#define RX_INTR_FLAG INTR(3)
 
 #define AND INSTR(0)
 #define TAD INSTR(1)

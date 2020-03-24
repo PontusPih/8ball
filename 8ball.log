@@ -259,6 +259,16 @@ I want to restructure the code a bit to make sections reflect the
 "time states" in which a PDP-8 processor executes. There is no real
 purpose other than being one step closer to a hardware implementation.
 
+Update 24-MAR-2020
+
+I've started implementing RX8 support! It is still tremendously fun to
+work with MAINDEC tests again. This time DIRXA, the diagnostics for
+RX8 and RX01. Not entirely obvious how to run the tests. But it is
+important to set a value to the first two questions. The first
+question decides if the controller and drives is tested (0000) or not
+(7000). The second question lets you set 0400 which halts on error.
+
+Already I was helped by test T2 to get the flags handling right.
 
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
