@@ -44,6 +44,7 @@ void rx8_process(short mb)
   case RX_NOP: // Just another NOP
     break;
   case RX_LCD: // Load Command (clear AC)
+    rx_ir = ac;
     current_function = (ac & RX_FUNC_MASK) >> 1;
     current_drive = (ac & RX_DRVSEL_MASK) ? 1 : 0;
     bit_mode = (ac & RX_MODE_MASK);
@@ -54,6 +55,11 @@ void rx8_process(short mb)
     ac = (ac & LINK_MASK);
     break;
   case RX_XDR: // Transfer Data Register
+    if( bit_mode ){
+      ac = rx_ir; // 12-bit mode overwrites
+    } else {
+      ac |= rx_ir & 0377; // 8-bit mode ORs with AC
+    }
     break;
   case RX_STR: // Skip on Transfer Request flag
     if( rx_tr ){
