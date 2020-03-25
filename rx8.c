@@ -13,7 +13,7 @@
 
 #define RX_FUNC_MASK 016
 #define RX_DRVSEL_MASK 020
-#define RX_MODE_MASK 060
+#define RX_MODE_MASK 040
 #define RX_MAINT_MASK 0200
 
 // RX8E interface registers
@@ -25,7 +25,7 @@ short rx_ef = 0; // Error Flag
 // RX8E status bits
 short online = 1; // Online (1) or offline (0) flag. Online means
                   // cable to RX01 drive is connected.
-short bit_mode = 1; // Bit Mode.  0 = 8-bit, !0 = 12-bit
+short bit_mode = 1; // Bit Mode.  0 = 12-bit, !0 = 8-bit
 short maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
 short intr_enabled = 0; // RX8E may generate interrupts
 
@@ -49,9 +49,9 @@ void rx8_process(short mb)
     break;
   case RX_XDR: // Transfer Data Register
     if( bit_mode ){
-      ac = rx_ir; // 12-bit mode overwrites
-    } else {
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
+    } else {
+      ac = rx_ir; // 12-bit mode overwrites
     }
     break;
   case RX_STR: // Skip on Transfer Request flag
