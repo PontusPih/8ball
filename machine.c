@@ -16,6 +16,8 @@ char com_buf[128];
 char trace_instruction = 0;
 short internal_stop_at = -1;
 
+#define UNUSED(x) (void)(x);
+
 #ifdef PTY_SRV
 #define _XOPEN_SOURCE 700
 
@@ -25,7 +27,6 @@ short internal_stop_at = -1;
 #include <unistd.h>
 int ptm = -1; // PTY master handle
 int tty_skip_count = 0;
-#define UNUSED(x) (void)(x);
 #include <string.h>
 #endif
 
@@ -53,6 +54,7 @@ int interrupted_by_console = 0;
 void machine_setup(char *pty_name)
 {
 #ifdef SERVER_BUILD
+  UNUSED(pty_name); // To avoid warning.
   cpu_init();
   tty_reset();
 #endif
@@ -241,6 +243,9 @@ short buf2short(unsigned char *b, int i)
 void send_short(short val)
 {
   unsigned char buf[2] = { val >> 8, val & 0xFF };
+#ifdef SERVER_BUILD
+  UNUSED(buf)
+#endif
 #ifdef PTY_CLI
   send_cmd(pts, buf, 2);
 #endif
