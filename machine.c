@@ -58,7 +58,7 @@ void machine_setup(char *pty_name)
   UNUSED(pty_name); // To avoid warning.
   cpu_init();
   tty_reset();
-  rx8_reset();
+  rx8e_reset();
 #endif
 
 
@@ -66,7 +66,7 @@ void machine_setup(char *pty_name)
   UNUSED(pty_name); // To avoid warning.
   cpu_init();
   tty_reset();
-  rx8_reset();
+  rx8e_reset();
 
   if( (ptm = posix_openpt(O_RDWR|O_NOCTTY)) == -1){
     printf("Unable to open PTMX\n");

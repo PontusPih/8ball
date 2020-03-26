@@ -29,10 +29,10 @@ short rx_bit_mode = 1; // Bit Mode.  0 = 12-bit, 1 = 8-bit
 short rx_maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
 short rx_intr_enabled = 0; // RX8E may generate interrupts
 
-static void controller_LCD(short ac);
-static short controller_XDR();
+static void rx01_LCD(short ac);
+static short rx01_XDR();
 
-void rx8_reset()
+void rx8e_reset()
 {
   rx_ir = 0;
   rx_tr = 0;
@@ -44,14 +44,14 @@ void rx8_reset()
   rx_intr_enabled = 0;
 }
 
-void rx8_process(short mb)
+void rx8e_process(short mb)
 {
   switch( mb & IOT_OP_MASK ){
   case RX_NOP: // Just another NOP
     break;
   case RX_LCD: // Load Command (clear AC)
     rx_ir = ac;
-    controller_LCD(rx_ir);
+    rx01_LCD(rx_ir);
     rx_bit_mode = (rx_ir & RX_MODE_MASK) ? 1 : 0;
     rx_maintenance_mode = (rx_ir & RX_MAINT_MASK) ? 1 : 0;
     if( rx_maintenance_mode ){
@@ -60,7 +60,7 @@ void rx8_process(short mb)
     ac = (ac & LINK_MASK);
     break;
   case RX_XDR: // Transfer Data Register
-    controller_XDR();
+    rx01_XDR();
     if( rx_bit_mode ){
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
     } else {
@@ -105,13 +105,13 @@ short current_function = -1; // Function being performed, may take
                              // several host instructions
 short current_drive = 0; // Drive the current function is performed on-
 
-void controller_LCD(short ir)
+void rx01_LCD(short ir)
 {
   current_function = (ir & RX_FUNC_MASK) >> 1;
   current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
 }
 
-short controller_XDR()
+short rx01_XDR()
 {
   return 0;
 }

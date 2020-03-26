@@ -397,7 +397,7 @@ int cpu_process()
     case 075: // Default RX8
     case 076:
     case 077:
-      rx8_process(mb);
+      rx8e_process(mb);
       break;
     default:
       // TODO optionally go to console

@@ -32,7 +32,7 @@ extern short rx_bit_mode; // Bit Mode.  0 = 12-bit, !0 = 8-bit
 extern short rx_maintenance_mode; // Maintenance mode. 0 = off, !0 = on
 extern short rx_intr_enabled; // RX8E may generate interrupts
 
-void rx8_reset();
-void rx8_process(short mb);
+void rx8e_reset();
+void rx8e_process(short mb);
 
 #endif // _RX8_H_
