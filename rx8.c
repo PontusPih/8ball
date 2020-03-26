@@ -13,7 +13,7 @@
 
 #define RX_FUNC_MASK 016
 #define RX_DRVSEL_MASK 020
-#define RX_MODE_MASK 040
+#define RX_MODE_MASK 0100
 #define RX_MAINT_MASK 0200
 
 // RX8E interface registers
