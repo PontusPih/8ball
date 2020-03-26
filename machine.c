@@ -169,6 +169,8 @@ char machine_run(char single)
         return 'I';
       }
     }
+
+    rx01_process();
   
     if( cpu_process() == -1 ){
       return 'H';

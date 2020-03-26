@@ -34,5 +34,6 @@ extern short rx_intr_enabled; // RX8E may generate interrupts
 
 void rx8e_reset();
 void rx8e_process(short mb);
+void rx01_process();
 
 #endif // _RX8_H_

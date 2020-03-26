@@ -39,6 +39,7 @@ int cpu_process(void);
 short direct_addr(short pc);
 short operand_addr(short pc, char examine);
 void cpu_raise_interrupt(short flag);
+void cpu_lower_interrupt(short flag);
 
 #define MEMSIZE 0100000 // MAX 0100000
 #define FIELD_MASK 070000

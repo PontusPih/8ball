@@ -94,6 +94,10 @@ void cpu_raise_interrupt(short flag)
   intr |= flag;
 }
 
+void cpu_lower_interrupt(short flag)
+{
+  intr &= ~flag;
+}
 
 int cpu_process()
 {

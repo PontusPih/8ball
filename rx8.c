@@ -115,3 +115,12 @@ short rx01_XDR()
 {
   return 0;
 }
+
+void rx01_process()
+{
+  if( rx_df && rx_intr_enabled ){
+    cpu_raise_interrupt(RX_INTR_FLAG);
+  } else {
+    cpu_lower_interrupt(RX_INTR_FLAG);
+  }
+}
