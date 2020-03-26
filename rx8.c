@@ -70,6 +70,7 @@ void rx8_process(short mb)
   case RX_STR: // Skip on Transfer Request flag
     if( rx_tr ){
       pc = INC_PC(pc);
+      rx_tr = rx_maintenance_mode;
     }
     break;
   case RX_SER: // Skip on ERror flag
