@@ -8,6 +8,7 @@
 
 #include "cpu.h"
 #include "tty.h"
+#include "rx8.h"
 #include "serial_com.h"
 #include "machine.h"
 
@@ -57,6 +58,7 @@ void machine_setup(char *pty_name)
   UNUSED(pty_name); // To avoid warning.
   cpu_init();
   tty_reset();
+  rx8_reset();
 #endif
 
 
@@ -64,6 +66,7 @@ void machine_setup(char *pty_name)
   UNUSED(pty_name); // To avoid warning.
   cpu_init();
   tty_reset();
+  rx8_reset();
 
   if( (ptm = posix_openpt(O_RDWR|O_NOCTTY)) == -1){
     printf("Unable to open PTMX\n");
@@ -543,6 +546,54 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
       tty_dcr = val;
     }
     res = tty_dcr;
+    break;
+  case RX_IR:
+    if( dep ){
+      rx_ir = val;
+    }
+    res = rx_ir;
+    break;
+  case RX_TR:
+    if( dep ){
+      rx_tr = val;
+    }
+    res = rx_tr;
+    break;
+  case RX_DF:
+    if( dep ){
+      rx_df = val;
+    }
+    res = rx_df;
+    break;
+  case RX_EF:
+    if( dep ){
+      rx_ef = val;
+    }
+    res = rx_ef;
+    break;
+  case RX_ONLINE:
+    if( dep ){
+      rx_online = val;
+    }
+    res = rx_online;
+    break;
+  case RX_BIT_MODE:
+    if( dep ){
+      rx_bit_mode = val;
+    }
+    res = rx_bit_mode;
+    break;
+  case RX_MAINTENANCE_MODE:
+    if( dep ){
+      rx_maintenance_mode = val;
+    }
+    res = rx_maintenance_mode;
+    break;
+  case RX_INTR_ENABLED:
+    if( dep ){
+      rx_intr_enabled = val;
+    }
+    res = rx_intr_enabled;
     break;
 #ifdef SERVER_BUILD
   default:

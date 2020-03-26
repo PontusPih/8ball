@@ -19,18 +19,30 @@
 // RX8E interface registers
 short rx_ir = 0; // Interface Register
 short rx_tr = 0; // Transfer Request flag
-short tr_df = 0; // Done Flag
+short rx_df = 0; // Done Flag
 short rx_ef = 0; // Error Flag
 
 // RX8E status bits
-short online = 1; // Online (1) or offline (0) flag. Online means
-                  // cable to RX01 drive is connected.
-short bit_mode = 1; // Bit Mode.  0 = 12-bit, !0 = 8-bit
-short maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
-short intr_enabled = 0; // RX8E may generate interrupts
+short rx_online = 1; // Online (1) or offline (0) flag. Online means
+                     // cable to RX01 drive is connected.
+short rx_bit_mode = 1; // Bit Mode.  0 = 12-bit, 1 = 8-bit
+short rx_maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
+short rx_intr_enabled = 0; // RX8E may generate interrupts
 
 static void controller_LCD(short ac);
 static short controller_XDR();
+
+void rx8_reset()
+{
+  rx_ir = 0;
+  rx_tr = 0;
+  rx_df = 0;
+  rx_ef = 0;
+  rx_online = 1;
+  rx_bit_mode = 1;
+  rx_maintenance_mode = 0;
+  rx_intr_enabled = 0;
+}
 
 void rx8_process(short mb)
 {
@@ -40,15 +52,16 @@ void rx8_process(short mb)
   case RX_LCD: // Load Command (clear AC)
     rx_ir = ac;
     controller_LCD(rx_ir);
-    bit_mode = (rx_ir & RX_MODE_MASK);
-    maintenance_mode = (rx_ir & RX_MAINT_MASK) ? 1 : 0;
-    if( maintenance_mode ){
-      rx_tr = tr_df = rx_ef = 1; // Setting maint mode raises all flags
+    rx_bit_mode = (rx_ir & RX_MODE_MASK) ? 1 : 0;
+    rx_maintenance_mode = (rx_ir & RX_MAINT_MASK) ? 1 : 0;
+    if( rx_maintenance_mode ){
+      rx_tr = rx_df = rx_ef = 1; // Setting maint mode raises all flags
     }
     ac = (ac & LINK_MASK);
     break;
   case RX_XDR: // Transfer Data Register
-    if( bit_mode ){
+    controller_XDR();
+    if( rx_bit_mode ){
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
     } else {
       ac = rx_ir; // 12-bit mode overwrites
@@ -62,17 +75,17 @@ void rx8_process(short mb)
   case RX_SER: // Skip on ERror flag
     if( rx_ef ){
       pc = INC_PC(pc);
-      rx_ef = maintenance_mode;
+      rx_ef = rx_maintenance_mode;
     }
     break;
   case RX_SDN: // Skip on DoNe flag
-    if( tr_df ){
+    if( rx_df ){
       pc = INC_PC(pc);
-      tr_df = maintenance_mode;;
+      rx_df = rx_maintenance_mode;
     }
     break;
   case RX_INTR: // enable/disable INTeRrupts
-    intr_enabled = ac & 1;
+    rx_intr_enabled = ac & 1;
     break;
   case RX_INIT: // INITialize RX01 drive
     break;

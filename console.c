@@ -557,6 +557,7 @@ typedef enum {
   E_TTY_KB_FLAG,
   E_TTY_TP_FLAG,
   E_CPU,
+  E_RX,
   OCTAL_LITERAL
 } token;
 
@@ -629,6 +630,8 @@ token map_token(char *token)
     return E_TTY_TP_FLAG;
   if( ! strcasecmp(token, "cpu") )
     return E_CPU;
+  if( ! strcasecmp(token, "rx") )
+    return E_RX;
 
   char *endptr;
   strtol(token, &endptr, 8);
@@ -799,6 +802,10 @@ void console(void)
           print_regs();
           printf("\n");
           break;
+	case E_RX:
+	  printf("IR = %o TR = %o DF = %o EF = %o online = %o bit_mode = %o maint = %o intr = %o\n",
+		 machine_examine_reg(RX_IR), machine_examine_reg(RX_TR), machine_examine_reg(RX_DF), machine_examine_reg(RX_EF), machine_examine_reg(RX_ONLINE), machine_examine_reg(RX_BIT_MODE),machine_examine_reg(RX_MAINTENANCE_MODE),machine_examine_reg(RX_INTR_ENABLED) );
+	  break;
         case OCTAL_LITERAL:
           if( _3rd_tok != NULL_TOKEN && _3rd_tok != OCTAL_LITERAL ) {
             printf("Syntax ERROR, non octal end of interval\n");

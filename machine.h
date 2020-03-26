@@ -29,6 +29,14 @@ typedef enum register_name {
   TTY_TP_BUF,
   TTY_TP_FLAG,
   TTY_DCR,
+  RX_IR,
+  RX_TR,
+  RX_DF,
+  RX_EF,
+  RX_ONLINE,
+  RX_BIT_MODE,
+  RX_MAINTENANCE_MODE,
+  RX_INTR_ENABLED
 } register_name_t;
 
 short machine_examine_mem(short addr);

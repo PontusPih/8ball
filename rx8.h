@@ -26,9 +26,13 @@ extern short rx_df; // Done Flag
 extern short rx_ef; // Error Flag
 
 // RX8E status bits
-extern short online; // Online (1) or offline (0) flag Online means
-                     // cable to RX01 drive is connected.
+extern short rx_online; // Online (1) or offline (0) flag Online means
+                        // cable to RX01 drive is connected.
+extern short rx_bit_mode; // Bit Mode.  0 = 12-bit, !0 = 8-bit
+extern short rx_maintenance_mode; // Maintenance mode. 0 = off, !0 = on
+extern short rx_intr_enabled; // RX8E may generate interrupts
 
+void rx8_reset();
 void rx8_process(short mb);
 
 #endif // _RX8_H_
