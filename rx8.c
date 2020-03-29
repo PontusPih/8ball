@@ -30,7 +30,7 @@ short rx_maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
 short rx_intr_enabled = 0; // RX8E may generate interrupts
 
 static void rx01_LCD(short ac);
-static short rx01_XDR();
+static void rx01_XDR();
 static void rx01_INIT();
 
 void rx8e_reset()
@@ -43,6 +43,15 @@ void rx8e_reset()
   rx_bit_mode = 1;
   rx_maintenance_mode = 0;
   rx_intr_enabled = 0;
+}
+
+void rx8e_check_interrupt()
+{
+  if( rx_df && rx_intr_enabled ){
+    cpu_raise_interrupt(RX_INTR_FLAG);
+  } else {
+    cpu_lower_interrupt(RX_INTR_FLAG);
+  }
 }
 
 void rx8e_process(short mb)
@@ -97,6 +106,9 @@ void rx8e_process(short mb)
     printf("illegal IOT instruction. Device: %o. Operation: %o - RX8\n", (mb & DEV_MASK) >> 3, mb & IOT_OP_MASK );
     break;
   }
+  // Setting df through maintenance mode and enabling interrupts
+  // will trigger an immediate interrupt.
+  rx8e_check_interrupt();
 }
 
 // Controller (RX01) definitions
@@ -121,23 +133,34 @@ short current_drive = 0; // Drive the current function is performed on-
 
 void rx01_LCD(short ir)
 {
+  if( ! rx_online ){
+    return;
+  }
   current_function = (ir & RX_FUNC_MASK) >> 1;
   current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
 }
 
-short rx01_XDR()
+void rx01_XDR()
 {
-  return 0;
+  if( ! rx_online ){
+    return;
+  }
 }
 
 void rx01_INIT()
 {
+  if( ! rx_online ){
+    return;
+  }
   run = 1;
   current_function = F_INIT;
 }
 
 void rx01_process()
 {
+  if( ! rx_online ){
+    return;
+  }
   if( run ){
     switch( current_function ) {
     case F_FILL_BUF:
@@ -161,9 +184,5 @@ void rx01_process()
     }
   }
 
-  if( rx_df && rx_intr_enabled ){
-    cpu_raise_interrupt(RX_INTR_FLAG);
-  } else {
-    cpu_lower_interrupt(RX_INTR_FLAG);
-  }
+  rx8e_check_interrupt();
 }
