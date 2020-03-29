@@ -31,6 +31,7 @@ short rx_intr_enabled = 0; // RX8E may generate interrupts
 
 static void rx01_LCD(short ac);
 static short rx01_XDR();
+static void rx01_INIT();
 
 void rx8e_reset()
 {
@@ -89,6 +90,8 @@ void rx8e_process(short mb)
     rx_intr_enabled = ac & 1;
     break;
   case RX_INIT: // INITialize RX01 drive
+    rx8e_reset();
+    rx01_INIT();
     break;
   default:
     printf("illegal IOT instruction. Device: %o. Operation: %o - RX8\n", (mb & DEV_MASK) >> 3, mb & IOT_OP_MASK );
@@ -96,13 +99,24 @@ void rx8e_process(short mb)
   }
 }
 
+// Controller (RX01) definitions
+#define F_FILL_BUF  0b000
+#define F_EMPTY_BUF 0b001
+#define F_WRT_SECT  0b010
+#define F_READ_SECT 0b011
+#define F_INIT      0b100 // Actually not used, I use it to indicate init
+#define F_READ_STAT 0b101
+#define F_READ_DD   0b110
+#define F_READ_ERR  0b111
+
 // Controller (RX01) bits and registers, one set for each drive.
 short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
 short sector_buffer[2][64] = {0}; // Buffer for read and write
-short current_function = -1; // Function being performed, may take
-                             // several host instructions
+short run = 0; // Run flag, indicates a function is being peformed
+short current_function = 0; // Function being performed, may take
+                            // several host instructions
 short current_drive = 0; // Drive the current function is performed on-
 
 void rx01_LCD(short ir)
@@ -116,8 +130,37 @@ short rx01_XDR()
   return 0;
 }
 
+void rx01_INIT()
+{
+  run = 1;
+  current_function = F_INIT;
+}
+
 void rx01_process()
 {
+  if( run ){
+    switch( current_function ) {
+    case F_FILL_BUF:
+      break;
+    case F_EMPTY_BUF:
+      break;
+    case F_WRT_SECT:
+      break;
+    case F_READ_SECT:
+      break;
+    case F_INIT:
+      rx_df = 1;
+      run = 0;
+      break;
+    case F_READ_STAT:
+      break;
+    case F_READ_DD:
+      break;
+    case F_READ_ERR:
+      break;
+    }
+  }
+
   if( rx_df && rx_intr_enabled ){
     cpu_raise_interrupt(RX_INTR_FLAG);
   } else {
