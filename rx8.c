@@ -173,12 +173,16 @@ void rx01_process()
   if( ! rx_df ){
     switch( current_function ) {
     case F_FILL_BUF:
+      rx_df = 1;
       break;
     case F_EMPTY_BUF:
+      rx_df = 1;
       break;
     case F_WRT_SECT:
+      rx_df = 1;
       break;
     case F_READ_SECT:
+      rx_df = 1;
       break;
     case F_INIT:
       {
@@ -192,10 +196,13 @@ void rx01_process()
 	break;
       }
     case F_READ_STAT:
+      rx_df = 1;
       break;
     case F_READ_DD:
+      rx_df = 1;
       break;
     case F_READ_ERR:
+      rx_df = 1;
       break;
     }
 
