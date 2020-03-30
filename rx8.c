@@ -11,11 +11,6 @@
 #include "cpu.h"
 #include "rx8.h"
 
-#define RX_FUNC_MASK 016
-#define RX_DRVSEL_MASK 020
-#define RX_MODE_MASK 0100
-#define RX_MAINT_MASK 0200
-
 // RX8E interface registers
 short rx_ir = 0; // Interface Register
 short rx_tr = 0; // Transfer Request flag
@@ -112,16 +107,6 @@ void rx8e_process(short mb)
   rx8e_check_interrupt();
 }
 
-// Controller (RX01) definitions
-#define F_FILL_BUF  0b000
-#define F_EMPTY_BUF 0b001
-#define F_WRT_SECT  0b010
-#define F_READ_SECT 0b011
-#define F_INIT      0b100 // Actually not used, I use it to indicate init
-#define F_READ_STAT 0b101
-#define F_READ_DD   0b110
-#define F_READ_ERR  0b111
-
 // Controller (RX01) bits and registers, one set for each drive.
 short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
@@ -198,7 +183,7 @@ void rx01_process()
     case F_READ_STAT:
       rx_df = 1;
       break;
-    case F_READ_DD:
+    case F_WRT_DD:
       rx_df = 1;
       break;
     case F_READ_ERR:

@@ -36,4 +36,19 @@ void rx8e_reset();
 void rx8e_process(short mb);
 void rx01_process();
 
+// RX01 functions
+#define F_FILL_BUF  0b000
+#define F_EMPTY_BUF 0b001
+#define F_WRT_SECT  0b010
+#define F_READ_SECT 0b011
+#define F_INIT      0b100 // Actually not used, I use it to indicate init
+#define F_READ_STAT 0b101
+#define F_WRT_DD   0b110
+#define F_READ_ERR  0b111
+
+#define RX_FUNC_MASK 016
+#define RX_DRVSEL_MASK 020
+#define RX_MODE_MASK 0100
+#define RX_MAINT_MASK 0200
+
 #endif // _RX8_H_

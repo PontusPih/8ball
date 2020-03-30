@@ -18,6 +18,7 @@
 #include "console.h"
 #include "cpu.h"
 #include "tty.h"
+#include "rx8.h"
 #include "machine.h"
 
 char in_console = 1;
@@ -313,6 +314,70 @@ void print_instruction(short pc)
           break;
         }
         break;
+      case 070:
+      case 071:
+      case 072:
+      case 073:
+      case 074:
+      case 075: // Default RX8
+      case 076:
+      case 077:
+        switch( cur & IOT_OP_MASK ){
+	case RX_NOP:
+	  printf(" RX NOP");
+	  break;
+	case RX_LCD:
+	  printf(" RX LCD: ");
+	  switch( ( ac & RX_FUNC_MASK ) >> 1 ){
+	  case F_FILL_BUF:
+	    printf("FILL BUF");
+	    break;
+	  case F_EMPTY_BUF:
+	    printf("EMPTY BUF");
+	    break;
+	  case F_WRT_SECT:
+	    printf("WRITE SECTOR");
+	    break;
+	  case F_READ_SECT:
+	    printf("READ SECTOR");
+	    break;
+	  case F_INIT: // Actually not used, I use it to indicate init
+	    printf("INIT");
+	    break;
+	  case F_READ_STAT:
+	    printf("READ STATUS");
+	    break;
+	  case F_WRT_DD:
+	    printf("WRITE DELETED DATA SECTOR");
+	    break;
+	  case F_READ_ERR:
+	    printf("READ ERROR");
+	    break;
+	  }
+	  break;
+	case RX_XDR:
+	  printf(" RX XDR");
+	  break;
+	case RX_STR:
+	  printf(" RX STR");
+	  break;
+	case RX_SER:
+	  printf(" RX SER");
+	  break;
+	case RX_SDN:
+	  printf(" RX SDN");
+	  break;
+	case RX_INTR:
+	  printf(" RX INTR");
+	  break;
+	case RX_INIT:
+	  printf(" RX INIT");
+	  break;
+	default:
+	  printf(" illegal IOT instruction. RX8E device");
+	  break;
+	}
+	break;
       default:
         printf(" IOT Device: %.3o", (cur & DEV_MASK) >> 3);
         break;
