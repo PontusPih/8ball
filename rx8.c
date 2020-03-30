@@ -129,15 +129,23 @@ short sector[2] = {0}; // Current sector, always between 1 and 032
 short sector_buffer[2][64] = {0}; // Buffer for read and write
 short current_function = 0; // Function being performed, may take
                             // several host instructions
-short current_drive = 0; // Drive the current function is performed on-
+short current_drive = 0; // Drive the current function is performed on
+short rx_ready[2] = {0}; // 0 - Door open or no floppy present TODO, load floppy from console
+                         // 1 - Door closed and floppy present
+short init_delay = 100; // One hundred instruction delay to finish INIT
+
 
 void rx01_LCD(short ir)
 {
   if( ! rx_online ){
     return;
   }
-  current_function = (ir & RX_FUNC_MASK) >> 1;
-  current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
+  if( ! rx_df ) {
+    // Unless the done flag is low, the drive controller will not
+    // accept a new command.
+    current_function = (ir & RX_FUNC_MASK) >> 1;
+    current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
+  }
 }
 
 void rx01_XDR()
@@ -153,6 +161,8 @@ void rx01_INIT()
     return;
   }
   current_function = F_INIT;
+  current_drive = 0;
+  init_delay = 100;
 }
 
 void rx01_process()
@@ -171,8 +181,16 @@ void rx01_process()
     case F_READ_SECT:
       break;
     case F_INIT:
-      rx_df = 1;
-      break;
+      {
+	if( 0 == init_delay ){
+	  rx_df = 1;
+	  init_delay = 100;
+	  RXES[current_drive] = 04; // TODO define some flags. (04 == init done)
+	} else {
+	  init_delay--;
+	}
+	break;
+      }
     case F_READ_STAT:
       break;
     case F_READ_DD:
@@ -180,6 +198,8 @@ void rx01_process()
     case F_READ_ERR:
       break;
     }
+
+    rx_ir = RXES[current_drive];
   }
 
   rx8e_check_interrupt();
