@@ -126,7 +126,6 @@ short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
 short sector_buffer[2][64] = {0}; // Buffer for read and write
-short run = 0; // Run flag, indicates a function is being peformed
 short current_function = 0; // Function being performed, may take
                             // several host instructions
 short current_drive = 0; // Drive the current function is performed on-
@@ -152,7 +151,6 @@ void rx01_INIT()
   if( ! rx_online ){
     return;
   }
-  run = 1;
   current_function = F_INIT;
 }
 
@@ -161,7 +159,7 @@ void rx01_process()
   if( ! rx_online ){
     return;
   }
-  if( run ){
+  if( ! rx_df ){
     switch( current_function ) {
     case F_FILL_BUF:
       break;
@@ -173,7 +171,6 @@ void rx01_process()
       break;
     case F_INIT:
       rx_df = 1;
-      run = 0;
       break;
     case F_READ_STAT:
       break;
