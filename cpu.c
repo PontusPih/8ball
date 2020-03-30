@@ -246,6 +246,7 @@ int cpu_process()
       case CAF:
         // TODO reset supported devices. Reset MMU interrupt inhibit flipflop
         tty_reset();
+        rx8e_reset();
         ac = ion = intr = 0;
         break;
       }

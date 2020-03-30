@@ -43,6 +43,7 @@ void rx8e_reset()
   rx_bit_mode = 1;
   rx_maintenance_mode = 0;
   rx_intr_enabled = 0;
+  rx01_INIT();
 }
 
 void rx8e_check_interrupt()
