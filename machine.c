@@ -660,7 +660,9 @@ void machine_interrupt()
   send_console_break(pts);
 #endif
 
+#ifdef SERVER_BUILD
   interrupted_by_console = 1;
+#endif
 }
 
 
