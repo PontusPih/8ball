@@ -1,5 +1,5 @@
  /*
-  Copyright (c) 2019 Pontus Pihlgren <pontus.pihlgren@gmail.com>
+  Copyright (c) 2020 Pontus Pihlgren <pontus.pihlgren@gmail.com>
   All rights reserved.
 
   This source code is licensed under the BSD-style license found in the

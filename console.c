@@ -328,7 +328,7 @@ void print_instruction(short pc)
 	  break;
 	case RX_LCD:
 	  printf(" RX LCD: ");
-	  switch( ( ac & RX_FUNC_MASK ) >> 1 ){
+	  switch( ( machine_examine_reg(AC) & RX_FUNC_MASK ) >> 1 ){
 	  case F_FILL_BUF:
 	    printf("FILL BUF");
 	    break;
