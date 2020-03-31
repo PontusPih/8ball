@@ -23,6 +23,7 @@ short rx_online = 1; // Online (1) or offline (0) flag. Online means
 short rx_bit_mode = 1; // Bit Mode.  0 = 12-bit, 1 = 8-bit
 short rx_maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
 short rx_intr_enabled = 0; // RX8E may generate interrupts
+short rx_run = 0; // Run flag, indicates a function should start
 
 static void rx01_LCD(short ac);
 static void rx01_XDR();
@@ -56,12 +57,13 @@ void rx8e_process(short mb)
   case RX_NOP: // Just another NOP
     break;
   case RX_LCD: // Load Command (clear AC)
-    rx_ir = ac;
+    rx_ir = ac & 07777; // Load rx_ir parallel from OMNIBUS
     rx01_LCD(rx_ir);
     rx_bit_mode = (rx_ir & RX_MODE_MASK) ? 1 : 0;
     rx_maintenance_mode = (rx_ir & RX_MAINT_MASK) ? 1 : 0;
     if( rx_maintenance_mode ){
       rx_tr = rx_df = rx_ef = 1; // Setting maint mode raises all flags
+      rx_run = 0; // setting rx_df to 1 forces rx_run to 0
     }
     ac = (ac & LINK_MASK);
     break;
@@ -70,7 +72,7 @@ void rx8e_process(short mb)
     if( rx_bit_mode ){
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
     } else {
-      ac = rx_ir; // 12-bit mode overwrites
+      ac = (ac & LINK_MASK) | rx_ir; // 12-bit mode overwrites
     }
     break;
   case RX_STR: // Skip on Transfer Request flag
@@ -88,14 +90,14 @@ void rx8e_process(short mb)
   case RX_SDN: // Skip on DoNe flag
     if( rx_df ){
       pc = INC_PC(pc);
-      rx_df = rx_maintenance_mode;
+      rx_df = rx_maintenance_mode; // TODO, force rx_run to 0 ?
     }
     break;
   case RX_INTR: // enable/disable INTeRrupts
     rx_intr_enabled = ac & 1;
     break;
   case RX_INIT: // INITialize RX01 drive
-    rx8e_reset();
+    rx8e_reset(); // TODO maaaybe not a complete reset here
     rx01_INIT();
     break;
   default:
@@ -112,6 +114,7 @@ short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
 short sector_buffer[2][64] = {0}; // Buffer for read and write
+
 short current_function = 0; // Function being performed, may take
                             // several host instructions
 short current_drive = 0; // Drive the current function is performed on
@@ -125,11 +128,12 @@ void rx01_LCD(short ir)
   if( ! rx_online ){
     return;
   }
-  if( ! rx_df ) {
+  if( ! rx_run && ! rx_df ) {
     // Unless the done flag is low, the drive controller will not
     // accept a new command.
     current_function = (ir & RX_FUNC_MASK) >> 1;
     current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
+    rx_run = 1;
   }
 }
 
@@ -138,6 +142,10 @@ void rx01_XDR()
   if( ! rx_online ){
     return;
   }
+  if( rx_maintenance_mode ){ // Don't set rx_run flag
+    return;
+  }
+  // rx_run = 1; // Continue current_function
 }
 
 void rx01_INIT()
@@ -145,9 +153,13 @@ void rx01_INIT()
   if( ! rx_online ){
     return;
   }
-  current_function = F_INIT;
-  current_drive = 0;
-  init_delay = 100;
+  if( !rx_run && ! rx_df ) { // TODO init forces df low
+    current_function = F_INIT;
+    current_drive = 0;
+    init_delay = 100;
+    rx_df = 0;
+    rx_run = 1;
+  }
 }
 
 void rx01_process()
@@ -155,43 +167,59 @@ void rx01_process()
   if( ! rx_online ){
     return;
   }
-  if( ! rx_df ){
+  if( rx_run && ! rx_df ){
+    printf("Func %o delay %d rx_run %d rx_df %o rx_bit_mode %o maint %o\n", current_function, init_delay, rx_run, rx_df, rx_bit_mode, rx_maintenance_mode);
+
     switch( current_function ) {
     case F_FILL_BUF:
       rx_df = 1;
+      rx_run = 0;
+      rx_ir = RXES[current_drive] & 07777;
       break;
     case F_EMPTY_BUF:
       rx_df = 1;
+      rx_run = 0;
+      rx_ir = RXES[current_drive] & 07777;
       break;
     case F_WRT_SECT:
       rx_df = 1;
+      rx_run = 0;
+      rx_ir = RXES[current_drive] & 07777;
       break;
     case F_READ_SECT:
       rx_df = 1;
+      rx_run = 0;
+      rx_ir = RXES[current_drive] & 07777;
       break;
     case F_INIT:
-      {
-	if( 0 == init_delay ){
-	  rx_df = 1;
-	  init_delay = 100;
-	  RXES[current_drive] = 04; // TODO define some flags. (04 == init done)
-	} else {
-	  init_delay--;
-	}
-	break;
+      if( 0 == init_delay ){
+	rx_run = 0;
+	rx_df = 1;
+	init_delay = 100;
+	RXES[current_drive] = 04; // TODO define some flags. (04 == init done)
+      } else {
+	init_delay--;
       }
-    case F_READ_STAT:
+      rx_ir = RXES[current_drive] & 07777;
+      break;
+    case F_READ_STAT: // Requires one or two revolutions. about 250ms in total
       rx_df = 1;
+      rx_run = 0;
+      // The status register is only 8 bits shifts from controller to rx8e
+      rx_ir = (rx_ir << 8) & 07777; // No internal errors implemented yet :)
       break;
     case F_WRT_DD:
       rx_df = 1;
+      rx_run = 0;
+      rx_ir = RXES[current_drive] & 07777;
       break;
     case F_READ_ERR:
       rx_df = 1;
+      rx_run = 0;
+      // The error register is only 8 bits shifts from controller to rx8e
+      rx_ir = (rx_ir << 8) & 07777; // No internal errors implemented yet :)
       break;
     }
-
-    rx_ir = RXES[current_drive];
   }
 
   rx8e_check_interrupt();

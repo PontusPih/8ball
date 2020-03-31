@@ -43,7 +43,7 @@ void rx01_process();
 #define F_READ_SECT 0b011
 #define F_INIT      0b100 // Actually not used, I use it to indicate init
 #define F_READ_STAT 0b101
-#define F_WRT_DD   0b110
+#define F_WRT_DD    0b110
 #define F_READ_ERR  0b111
 
 #define RX_FUNC_MASK 016
