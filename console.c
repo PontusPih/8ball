@@ -429,7 +429,7 @@ void print_instruction(short pc)
           //      MQA & MQL is called SWP in some assemblers.
           //      CLA & OSR is called LAS (Load AC from Switches)
           //      CLL & CML is called STL (Set The link to a 1)
-          //      CLA & CMA is called STA (Set The AC to a -1)
+          //      CLA & CMA is called STA (Set The AC to all 1 (7777/-1) )
         }
       }
       break;
@@ -554,6 +554,8 @@ typedef enum {
   E_UB,
   E_PC,
   E_TTY,
+  E_TTY_KB_FLAG,
+  E_TTY_TP_FLAG,
   E_CPU,
   OCTAL_LITERAL
 } token;
@@ -621,6 +623,10 @@ token map_token(char *token)
     return E_PC;
   if( ! strcasecmp(token, "tty") )
     return E_TTY;
+  if( ! strcasecmp(token, "tty_kb_flag") )
+    return E_TTY_KB_FLAG;
+  if( ! strcasecmp(token, "tty_tp_flag") )
+    return E_TTY_TP_FLAG;
   if( ! strcasecmp(token, "cpu") )
     return E_CPU;
 
@@ -892,6 +898,20 @@ void console(void)
           if( val >= 0 ){
             machine_deposit_reg(PC,val);
             printf("PC = %o\n", machine_examine_reg(PC));
+          }
+          break;
+        case E_TTY_KB_FLAG:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            machine_deposit_reg(TTY_KB_FLAG,val);
+            printf("TTY_KB_FLAG = %o\n", machine_examine_reg(TTY_KB_FLAG));
+          }
+          break;
+        case E_TTY_TP_FLAG:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            machine_deposit_reg(TTY_TP_FLAG,val);
+            printf("TTY_TP_FLAG = %o\n", machine_examine_reg(TTY_TP_FLAG));
           }
           break;
         case OCTAL_LITERAL:
