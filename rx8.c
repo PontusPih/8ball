@@ -113,14 +113,15 @@ void rx8e_process(short mb)
 short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
-short sector_buffer[2][64] = {0}; // Buffer for read and write
+char sector_buffer[2][128] = {0}; // Buffer for read and write
 
-short current_function = 0; // Function being performed, may take
-                            // several host instructions
+short current_function = -1; // Function being performed, may take
+                             // several host instructions
 short current_drive = 0; // Drive the current function is performed on
 short rx_ready[2] = {0}; // 0 - Door open or no floppy present TODO, load floppy from console
                          // 1 - Door closed and floppy present
-short init_delay = 100; // One hundred instruction delay to finish INIT
+#define RX_INIT_DELAY 30
+short init_delay = RX_INIT_DELAY; // default delay to finish INIT
 
 
 void rx01_LCD(short ir)
@@ -128,7 +129,7 @@ void rx01_LCD(short ir)
   if( ! rx_online ){
     return;
   }
-  if( ! rx_run && ! rx_df ) {
+  if( ! rx_run && ! rx_df ) { // TODO, check current_function?
     // Unless the done flag is low, the drive controller will not
     // accept a new command.
     current_function = (ir & RX_FUNC_MASK) >> 1;
@@ -145,7 +146,9 @@ void rx01_XDR()
   if( rx_maintenance_mode ){ // Don't set rx_run flag
     return;
   }
-  // rx_run = 1; // Continue current_function
+  if( ! rx_df && current_function >= 0){
+    rx_run = 1; // Continue current_function
+  }
 }
 
 void rx01_INIT()
@@ -156,7 +159,7 @@ void rx01_INIT()
   if( !rx_run && ! rx_df ) { // TODO init forces df low
     current_function = F_INIT;
     current_drive = 0;
-    init_delay = 100;
+    init_delay = RX_INIT_DELAY;
     rx_df = 0;
     rx_run = 1;
   }
@@ -167,36 +170,67 @@ void rx01_process()
   if( ! rx_online ){
     return;
   }
-  if( rx_run && ! rx_df ){
+  if( rx_run && ! rx_df && current_function >= 0){
     printf("Func %o delay %d rx_run %d rx_df %o rx_bit_mode %o maint %o\n", current_function, init_delay, rx_run, rx_df, rx_bit_mode, rx_maintenance_mode);
 
     switch( current_function ) {
     case F_FILL_BUF:
-      rx_df = 1;
-      rx_run = 0;
-      rx_ir = RXES[current_drive] & 07777;
+      if( 0 == rx_tr ) {
+	static char cur = -1;
+	printf("Fill buffer %d / %d\n", cur, rx_bit_mode ? 127 : 63);
+	if( -1 == cur ){ // Start a sector transfer from the RX8E
+	  cur = rx_bit_mode ? 127 : 63;
+	  rx_tr = 1;
+	  rx_run = 0;
+	  break;
+	} else { // transfer one byte or word
+	  if( rx_bit_mode ){
+	    // 8 bit transfer
+	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & 0377;
+	  } else {
+	    // 12 bit transfer
+	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) (rx_ir & 07400) >> 8;
+	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & 0377;
+	  }
+	  cur --;
+	  rx_tr = 1;
+	  rx_run = 0;
+	}
+
+	if( -1 == cur ){
+	  // If cur is -1 again, one whole sector has been transferred
+	  rx_df = 1;
+	  rx_run = 0;
+	  rx_ir = RXES[current_drive] & 07777;
+	  current_function = -1;
+	}
+      }
       break;
     case F_EMPTY_BUF:
       rx_df = 1;
       rx_run = 0;
       rx_ir = RXES[current_drive] & 07777;
+      current_function = -1;
       break;
     case F_WRT_SECT:
       rx_df = 1;
       rx_run = 0;
       rx_ir = RXES[current_drive] & 07777;
+      current_function = -1;
       break;
     case F_READ_SECT:
       rx_df = 1;
       rx_run = 0;
       rx_ir = RXES[current_drive] & 07777;
+      current_function = -1;
       break;
     case F_INIT:
       if( 0 == init_delay ){
 	rx_run = 0;
 	rx_df = 1;
-	init_delay = 100;
+	init_delay = RX_INIT_DELAY;
 	RXES[current_drive] = 04; // TODO define some flags. (04 == init done)
+	current_function = -1;
       } else {
 	init_delay--;
       }
@@ -207,17 +241,20 @@ void rx01_process()
       rx_run = 0;
       // The status register is only 8 bits shifts from controller to rx8e
       rx_ir = (rx_ir << 8) & 07777; // No internal errors implemented yet :)
+      current_function = -1;
       break;
     case F_WRT_DD:
       rx_df = 1;
       rx_run = 0;
       rx_ir = RXES[current_drive] & 07777;
+      current_function = -1;
       break;
     case F_READ_ERR:
       rx_df = 1;
       rx_run = 0;
       // The error register is only 8 bits shifts from controller to rx8e
       rx_ir = (rx_ir << 8) & 07777; // No internal errors implemented yet :)
+      current_function = -1;
       break;
     }
   }
