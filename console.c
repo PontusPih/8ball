@@ -623,6 +623,7 @@ typedef enum {
   E_TTY_TP_FLAG,
   E_CPU,
   E_RX,
+  E_RX_ONLINE,
   OCTAL_LITERAL
 } token;
 
@@ -697,6 +698,8 @@ token map_token(char *token)
     return E_CPU;
   if( ! strcasecmp(token, "rx") )
     return E_RX;
+  if( ! strcasecmp(token, "rx_online") )
+    return E_RX_ONLINE;
 
   char *endptr;
   strtol(token, &endptr, 8);
@@ -982,6 +985,13 @@ void console(void)
           if( val >= 0 ){
             machine_deposit_reg(TTY_TP_FLAG,val);
             printf("TTY_TP_FLAG = %o\n", machine_examine_reg(TTY_TP_FLAG));
+	  }
+	  break;
+        case E_RX_ONLINE:
+          val = read_12bit_octal(_3rd_str);
+          if( val >= 0 ){
+            machine_deposit_reg(RX_ONLINE,val);
+            printf("RX_ONLINE = %o\n", machine_examine_reg(RX_ONLINE));
           }
           break;
         case OCTAL_LITERAL:
