@@ -207,27 +207,33 @@ void rx01_process()
       break;
     case F_EMPTY_BUF:
       if( 0 == rx_tr ){
+	static char state = 0;
 	static char cur = -1;
-	if( -1 == cur ) { // Start a sector transfer to the RX8E
+	switch( state ){
+	case 0: // Start a sector transfer to the RX8E
 	  cur = rx_bit_mode ? 127 : 63;
-	}
-
-	if( rx_bit_mode ){
-	  rx_ir = sector_buffer[current_drive][127 - cur];
-	} else {
-	  rx_ir = sector_buffer[current_drive][127 - 2*cur - 1];
-	  rx_ir = rx_ir << 8 | sector_buffer[current_drive][127 - 2*cur];
-	}
-	cur --;
-
-	if( -1 == cur ){
-	  // If cur reached -1 again, one whole sector has been transferred
+	  state = 1;
+	  // Fall through to first transfer
+	case 1: // Transfer sector data
+	  if( rx_bit_mode ){
+	    rx_ir = sector_buffer[current_drive][127 - cur];
+	  } else {
+	    rx_ir = sector_buffer[current_drive][127 - 2*cur - 1];
+	    rx_ir = rx_ir << 8 | sector_buffer[current_drive][127 - 2*cur];
+	  }
+	  cur --;
+	  if( -1 == cur ) {
+	    state = 2; // Last bit of data to transfer
+	  }
+	  rx_tr = 1;
+	  break;
+	case 2: // One whole sector has been transferred
 	  rx_df = 1;
 	  rx_tr = 0; // No transfer request after last byte/word
 	  rx_ir = RXES[current_drive] & 07777;
 	  current_function = -1;
-	} else {
-	  rx_tr = 1;
+	  state = 0;
+	  break;
 	}
 	rx_run = 0;
       }
