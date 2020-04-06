@@ -72,7 +72,7 @@ void rx8e_process(short mb)
     if( rx_bit_mode ){
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
     } else {
-      ac = (ac & LINK_MASK) | rx_ir; // 12-bit mode overwrites
+      ac = (ac & LINK_MASK) | (rx_ir & 07777) ; // 12-bit mode overwrites
     }
     break;
   case RX_STR: // Skip on Transfer Request flag
@@ -206,10 +206,31 @@ void rx01_process()
       }
       break;
     case F_EMPTY_BUF:
-      rx_df = 1;
-      rx_run = 0;
-      rx_ir = RXES[current_drive] & 07777;
-      current_function = -1;
+      if( 0 == rx_tr ){
+	static char cur = -1;
+	if( -1 == cur ) { // Start a sector transfer to the RX8E
+	  cur = rx_bit_mode ? 127 : 63;
+	}
+
+	if( rx_bit_mode ){
+	  rx_ir = sector_buffer[current_drive][127 - cur];
+	} else {
+	  rx_ir = sector_buffer[current_drive][127 - 2*cur - 1];
+	  rx_ir = rx_ir << 8 | sector_buffer[current_drive][127 - 2*cur];
+	}
+	cur --;
+
+	if( -1 == cur ){
+	  // If cur reached -1 again, one whole sector has been transferred
+	  rx_df = 1;
+	  rx_tr = 0; // No transfer request after last byte/word
+	  rx_ir = RXES[current_drive] & 07777;
+	  current_function = -1;
+	} else {
+	  rx_tr = 1;
+	}
+	rx_run = 0;
+      }
       break;
     case F_WRT_SECT:
       rx_df = 1;
