@@ -201,6 +201,7 @@ void rx01_process()
 	  // If cur is -1 again, one whole sector has been transferred
 	  rx_df = 1;
 	  rx_run = 0;
+	  rx_tr = 0; // No transfer request after last byte/word
 	  rx_ir = RXES[current_drive] & 07777;
 	  current_function = -1;
 	}
