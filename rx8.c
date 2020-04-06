@@ -35,7 +35,6 @@ void rx8e_reset()
   rx_tr = 0;
   rx_df = 0;
   rx_ef = 0;
-  rx_online = 1;
   rx_bit_mode = 1;
   rx_maintenance_mode = 0;
   rx_intr_enabled = 0;
