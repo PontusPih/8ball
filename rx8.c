@@ -180,31 +180,26 @@ void rx01_process()
 	printf("Fill buffer %d / %d\n", cur, rx_bit_mode ? 127 : 63);
 	if( -1 == cur ){ // Start a sector transfer from the RX8E
 	  cur = rx_bit_mode ? 127 : 63;
-	  rx_tr = 1;
-	  rx_run = 0;
-	  break;
 	} else { // transfer one byte or word
-	  if( rx_bit_mode ){
-	    // 8 bit transfer
+	  if( rx_bit_mode ){ // 8 bit transfer
 	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & 0377;
-	  } else {
-	    // 12 bit transfer
+	  } else { // 12 bit transfer
 	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) (rx_ir & 07400) >> 8;
 	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & 0377;
 	  }
 	  cur --;
-	  rx_tr = 1;
-	  rx_run = 0;
 	}
 
 	if( -1 == cur ){
-	  // If cur is -1 again, one whole sector has been transferred
+	  // If cur reached -1 again, one whole sector has been transferred
 	  rx_df = 1;
-	  rx_run = 0;
 	  rx_tr = 0; // No transfer request after last byte/word
 	  rx_ir = RXES[current_drive] & 07777;
 	  current_function = -1;
+	} else {
+	  rx_tr = 1;
 	}
+	rx_run = 0;
       }
       break;
     case F_EMPTY_BUF:
