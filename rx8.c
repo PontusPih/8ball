@@ -113,7 +113,7 @@ void rx8e_process(short mb)
 short RXES[2] = {0}; // RX Error and Status bits
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
-char sector_buffer[2][128] = {0}; // Buffer for read and write
+unsigned char sector_buffer[2][128] = {0}; // Buffer for read and write
 
 short current_function = -1; // Function being performed, may take
                              // several host instructions
@@ -147,6 +147,9 @@ void rx01_XDR()
     return;
   }
   if( ! rx_df && current_function >= 0){
+    if( current_function == F_FILL_BUF ){
+      rx_ir = ac & 07777;
+    }
     rx_run = 1; // Continue current_function
   }
 }
@@ -184,7 +187,7 @@ void rx01_process()
 	  if( rx_bit_mode ){ // 8 bit transfer
 	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & 0377;
 	  } else { // 12 bit transfer
-	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) (rx_ir & 07400) >> 8;
+	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) ((rx_ir & 07400) >> 8);
 	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & 0377;
 	  }
 	  cur --;
