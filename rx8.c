@@ -160,11 +160,10 @@ void rx01_INIT()
   if( ! rx_online ){
     return;
   }
-  if( !rx_run && ! rx_df ) { // TODO init forces df low
+  if( current_function != F_INIT ) {
     current_function = F_INIT;
     current_drive = 0;
     init_delay = RX_INIT_DELAY;
-    rx_df = 0;
     rx_run = 1;
   }
 }
