@@ -124,6 +124,7 @@ short rx_ready[2] = {0}; // 0 - Door open or no floppy present TODO, load floppy
 short init_delay = RX_INIT_DELAY; // default delay to finish INIT
 
 #define RX_INIT_DONE 04
+#define RX_DRIVE_RDY 0200
 
 void rx01_LCD(short ir)
 {
@@ -254,7 +255,8 @@ void rx01_process()
 	rx_run = 0;
 	rx_df = 1;
 	init_delay = RX_INIT_DELAY;
-	RXES[current_drive] = RX_INIT_DONE;
+	RXES[0] = RX_INIT_DONE | (rx_ready[0] ? RX_DRIVE_RDY : 0);
+	RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
 	current_function = -1;
       } else {
 	init_delay--;
@@ -264,8 +266,10 @@ void rx01_process()
     case F_READ_STAT: // Requires one or two revolutions. about 250ms in total
       rx_df = 1;
       rx_run = 0;
-      // The status register is only 8 bits shifts from controller to rx8e
-      rx_ir = (rx_ir << 8) & B12_MASK; // No internal errors implemented yet :)
+      // The status register is only 8 bits shifted from controller to rx8e
+      // RX_INIT_DONE flag is explicitly left out from F_READ_STAT result
+      rx_ir = ((rx_ir << 8) & B12_MASK) | (RXES[current_drive] & ~RX_INIT_DONE);
+      printf("Setting rx_ir to %o\n",rx_ir);
       current_function = -1;
       break;
     case F_WRT_DD:
