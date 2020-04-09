@@ -733,11 +733,9 @@ void console(void)
 
         break;
       case HALT:
-        if( OCTAL_LITERAL != _2nd_tok ){
-          if( NULL_TOKEN != _3rd_tok ){
-            to_many_args();
-            break;
-          }
+	if( NULL_TOKEN != _2nd_tok ){
+	  to_many_args();
+	  break;
         }
 
         machine_halt();
