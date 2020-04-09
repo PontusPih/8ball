@@ -174,7 +174,7 @@ void rx01_process()
     return;
   }
   if( rx_run && ! rx_df && current_function >= 0){
-    printf("Func %o delay %d rx_run %d rx_df %o rx_bit_mode %o maint %o\n", current_function, init_delay, rx_run, rx_df, rx_bit_mode, rx_maintenance_mode);
+    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive);
 
     switch( current_function ) {
     case F_FILL_BUF:

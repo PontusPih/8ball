@@ -597,6 +597,30 @@ short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
     }
     res = rx_intr_enabled;
     break;
+  case RX_RUN:
+    if( dep ){
+      rx_run = val;
+    }
+    res = rx_run;
+    break;
+  case RX_FUNCTION:
+    if( dep ){
+      current_function = val;
+    }
+    res = current_function;
+    break;
+  case RX_READY_0:
+    if( dep ){
+      rx_ready[0] = val;
+    }
+    res = rx_ready[0];
+    break;
+  case RX_READY_1:
+    if( dep ){
+      rx_ready[1] = val;
+    }
+    res = rx_ready[1];
+    break;
 #ifdef SERVER_BUILD
   default:
     printf("OOPS, unknown reg, |%d|", reg);

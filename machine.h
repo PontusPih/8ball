@@ -36,7 +36,11 @@ typedef enum register_name {
   RX_ONLINE,
   RX_BIT_MODE,
   RX_MAINTENANCE_MODE,
-  RX_INTR_ENABLED
+  RX_INTR_ENABLED,
+  RX_RUN,
+  RX_FUNCTION,
+  RX_READY_0,
+  RX_READY_1
 } register_name_t;
 
 short machine_examine_mem(short addr);

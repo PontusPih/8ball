@@ -624,6 +624,8 @@ typedef enum {
   E_CPU,
   E_RX,
   E_RX_ONLINE,
+  RX_INSERT,
+  RX_EJECT,
   OCTAL_LITERAL
 } token;
 
@@ -700,6 +702,10 @@ token map_token(char *token)
     return E_RX;
   if( ! strcasecmp(token, "rx_online") )
     return E_RX_ONLINE;
+  if( ! strcasecmp(token, "rx_insert") || ! strcasecmp(token, "rx_i") )
+    return RX_INSERT;
+  if( ! strcasecmp(token, "rx_eject") || ! strcasecmp(token, "rx_e") )
+    return RX_EJECT;
 
   char *endptr;
   strtol(token, &endptr, 8);
@@ -871,8 +877,8 @@ void console(void)
           printf("\n");
           break;
 	case E_RX:
-	  printf("IR = %o TR = %o DF = %o EF = %o online = %o bit_mode = %o maint = %o intr = %o\n",
-		 machine_examine_reg(RX_IR), machine_examine_reg(RX_TR), machine_examine_reg(RX_DF), machine_examine_reg(RX_EF), machine_examine_reg(RX_ONLINE), machine_examine_reg(RX_BIT_MODE),machine_examine_reg(RX_MAINTENANCE_MODE),machine_examine_reg(RX_INTR_ENABLED) );
+	  printf("IR = %o TR = %o DF = %o EF = %o online = %o bit_mode = %o maint = %o intr = %o run = %o func = %o rx_ready[0] = %o rx_ready[1] = %o\n",
+		 machine_examine_reg(RX_IR), machine_examine_reg(RX_TR), machine_examine_reg(RX_DF), machine_examine_reg(RX_EF), machine_examine_reg(RX_ONLINE), machine_examine_reg(RX_BIT_MODE),machine_examine_reg(RX_MAINTENANCE_MODE),machine_examine_reg(RX_INTR_ENABLED),machine_examine_reg(RX_RUN),machine_examine_reg(RX_FUNCTION),machine_examine_reg(RX_READY_0),machine_examine_reg(RX_READY_1));
 	  break;
         case OCTAL_LITERAL:
           if( _3rd_tok != NULL_TOKEN && _3rd_tok != OCTAL_LITERAL ) {
@@ -1226,6 +1232,47 @@ void console(void)
           printf("TTY input from keyboard\n");
         }
         break;
+      case RX_INSERT:
+        if( OCTAL_LITERAL != _2nd_tok ){
+	  printf("Syntax ERROR, drive number must be 0 or 1\n");
+          break;
+        }
+        if( NULL_TOKEN == _3rd_tok ){
+          to_few_args();
+          break;
+        }
+
+        if( _2nd_str[1] == '\0' && (_2nd_str[0] == '0' || _2nd_str[0] == '1' )){
+	  printf("Floppy image \"%s\" mounted on drive %s\n",_3rd_str, _2nd_str);
+	  if( _2nd_str[0] == '0' ){
+	    machine_deposit_reg(RX_READY_0,1);
+	  } else {
+	    machine_deposit_reg(RX_READY_1,1);
+	  }
+	} else {
+	  printf("Syntax ERROR, drive number must be 0 or 1 not %s\n", _2nd_str);
+        }
+        break;
+      case RX_EJECT:
+        if( OCTAL_LITERAL != _2nd_tok ||
+            ! (_2nd_str[1] == '\0' && (_2nd_str[0] == '0' || _2nd_str[0] == '1' ))){
+	  printf("Syntax ERROR, drive number must be 0 or 1\n");
+          break;
+        }
+        if( NULL_TOKEN != _3rd_tok ){
+          to_many_args();
+          break;
+	}
+
+	if( _2nd_str[0] == '0' ){
+	  machine_deposit_reg(RX_READY_0,0);
+	} else {
+	  machine_deposit_reg(RX_READY_1,0);
+	}
+
+	printf("Floppy in drive \"%s\" ejected\n", _2nd_str);
+
+	break;
       case NULL_TOKEN:
         break;
       default:

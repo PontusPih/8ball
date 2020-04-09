@@ -31,6 +31,9 @@ extern short rx_online; // Online (1) or offline (0) flag Online means
 extern short rx_bit_mode; // Bit Mode.  0 = 12-bit, !0 = 8-bit
 extern short rx_maintenance_mode; // Maintenance mode. 0 = off, !0 = on
 extern short rx_intr_enabled; // RX8E may generate interrupts
+extern short rx_run; // RX01 run flag
+extern short current_function; // RX01 internal function flag
+extern short rx_ready[2];
 
 void rx8e_reset();
 void rx8e_process(short mb);
