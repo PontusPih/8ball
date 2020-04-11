@@ -181,7 +181,7 @@ void rx01_process()
     return;
   }
   if( rx_run && ! rx_df && current_function >= 0){
-    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive);
+    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive]);
 
     switch( current_function ) {
     case F_FILL_BUF:
@@ -310,9 +310,9 @@ void rx01_process()
       rx_df = 1;
       rx_run = 0;
       // The status register is only 8 bits shifted from controller to rx8e
-      // RX_INIT_DONE flag is explicitly left out from F_READ_STAT result
-      rx_ir = ((rx_ir << 8) & B12_MASK) | (RXES[current_drive] & ~RX_INIT_DONE);
-      printf("Setting rx_ir to %o\n",rx_ir);
+      // RX_INIT_DONE flag is explicitly reset here
+      RXES[current_drive] &= ~RX_INIT_DONE;
+      rx_ir = ((rx_ir << 8) & B12_MASK) | RXES[current_drive];
       current_function = -1;
       break;
     case F_WRT_DD:
