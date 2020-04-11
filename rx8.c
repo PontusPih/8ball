@@ -127,6 +127,8 @@ short init_delay = RX_INIT_DELAY; // default delay to finish INIT
 #define RX_INIT_DONE 04
 #define RX_DRIVE_RDY 0200
 
+unsigned char data[2][77][26][128] = {0}; // Floppy data;
+
 void rx01_LCD(short ir)
 {
   if( ! rx_online ){
@@ -151,6 +153,9 @@ void rx01_XDR()
   }
   if( ! rx_df && current_function >= 0){
     if( current_function == F_FILL_BUF ){
+      rx_ir = ac & AC_MASK;
+    }
+    if( current_function == F_READ_SECT ){
       rx_ir = ac & AC_MASK;
     }
     rx_run = 1; // Continue current_function
@@ -246,10 +251,47 @@ void rx01_process()
       current_function = -1;
       break;
     case F_READ_SECT:
-      rx_df = 1;
-      rx_run = 0;
-      rx_ir = RXES[current_drive] & B8_MASK;
-      current_function = -1;
+      if( 0 == rx_tr ){
+	static char state = 0;
+	printf("State %d\n",state);
+	switch(state){
+	case 0:
+	  RXES[current_drive] &= 0b00111100; // clear RXES bit 4,5,10 and 11
+	  rx_tr = 1; // Request sector address
+	  rx_run = 0;
+	  state = 1; // Wait for sector address
+	  break;
+	case 1:
+	  sector[current_drive] = rx_ir;
+	  rx_tr = 1; // Request track address
+	  rx_run = 0;
+	  state = 2; // Wait for track address
+	  break;
+	case 2:
+	  track[current_drive] = rx_ir;
+	  int d = current_drive;
+	  int t = track[d];
+	  int s = sector[d];
+
+	  if( t < 0 || t > 0114 ){
+	    rx_ef = 1;
+	    RXER[current_drive] = 0040; // Tried to access track greater than 77
+	  } else if( s < 1 || s > 032 ){
+	    rx_ef = 1;
+	    RXER[current_drive] = 0070; // Desired sector not found after two revolutions
+	  } else { // Track and Sector number ok
+	    for(int i=0;i<128;i++){
+	      data[d][t][s][i] = sector_buffer[d][i];
+	    }
+	  }
+	  rx_df = 1;
+	  rx_run = 0;
+	  rx_ir = RXES[current_drive] & B8_MASK; // TODO, set bit 5 if deleted data mark found
+	  current_function = -1;
+	  state = 0;
+	  break;
+	}
+      }
       break;
     case F_INIT:
       if( 0 == init_delay ){
