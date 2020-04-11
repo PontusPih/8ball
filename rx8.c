@@ -111,6 +111,7 @@ void rx8e_process(short mb)
 
 // Controller (RX01) bits and registers, one set for each drive.
 short RXES[2] = {0}; // RX Error and Status bits
+short RXER[2] = {0}; // RX Error register
 short track[2] = {0}; // Current track, always between 0 and 0114
 short sector[2] = {0}; // Current sector, always between 1 and 032
 unsigned char sector_buffer[2][128] = {0}; // Buffer for read and write
@@ -282,7 +283,7 @@ void rx01_process()
       rx_df = 1;
       rx_run = 0;
       // The error register is only 8 bits shifts from controller to rx8e
-      rx_ir = (rx_ir << 8) & B12_MASK; // No internal errors implemented yet :)
+      rx_ir = ((rx_ir << 8) & B12_MASK) | (RXER[current_drive] & B8_MASK);
       current_function = -1;
       break;
     }
