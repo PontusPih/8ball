@@ -197,7 +197,7 @@ void rx01_process()
 	  // If cur reached -1 again, one whole sector has been transferred
 	  rx_df = 1;
 	  rx_tr = 0; // No transfer request after last byte/word
-	  rx_ir = RXES[current_drive] & B12_MASK;
+	  rx_ir = RXES[current_drive] & B8_MASK;
 	  current_function = -1;
 	} else {
 	  rx_tr = 1;
@@ -230,7 +230,7 @@ void rx01_process()
 	case 2: // One whole sector has been transferred
 	  rx_df = 1;
 	  rx_tr = 0; // No transfer request after last byte/word
-	  rx_ir = RXES[current_drive] & B12_MASK;
+	  rx_ir = RXES[current_drive] & B8_MASK;
 	  current_function = -1;
 	  state = 0;
 	  break;
@@ -241,13 +241,13 @@ void rx01_process()
     case F_WRT_SECT:
       rx_df = 1;
       rx_run = 0;
-      rx_ir = RXES[current_drive] & B12_MASK;
+      rx_ir = RXES[current_drive] & B8_MASK;
       current_function = -1;
       break;
     case F_READ_SECT:
       rx_df = 1;
       rx_run = 0;
-      rx_ir = RXES[current_drive] & B12_MASK;
+      rx_ir = RXES[current_drive] & B8_MASK;
       current_function = -1;
       break;
     case F_INIT:
@@ -275,7 +275,7 @@ void rx01_process()
     case F_WRT_DD:
       rx_df = 1;
       rx_run = 0;
-      rx_ir = RXES[current_drive] & B12_MASK;
+      rx_ir = RXES[current_drive] & B8_MASK;
       current_function = -1;
       break;
     case F_READ_ERR:
