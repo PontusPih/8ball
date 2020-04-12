@@ -112,8 +112,8 @@ void rx8e_process(short mb)
 // Controller (RX01) bits and registers, one set for each drive.
 short RXES[2] = {0}; // RX Error and Status bits
 short RXER[2] = {0}; // RX Error register
-short track[2] = {0}; // Current track, always between 0 and 0114
-short sector[2] = {0}; // Current sector, always between 1 and 032
+unsigned short RXTA[2] = {0}; // Current track, always between 0 and 0114
+unsigned short RXSA[2] = {0}; // Current sector, always between 1 and 032
 unsigned char sector_buffer[2][128] = {0}; // Buffer for read and write
 
 short current_function = -1; // Function being performed, may take
@@ -258,22 +258,20 @@ void rx01_process()
 	case 0:
 	  RXES[current_drive] &= 0b00111100; // clear RXES bit 4,5,10 and 11
 	  rx_tr = 1; // Request sector address
-	  rx_run = 0;
 	  state = 1; // Wait for sector address
 	  break;
 	case 1:
-	  sector[current_drive] = rx_ir;
+	  RXSA[current_drive] = rx_ir;
 	  rx_tr = 1; // Request track address
-	  rx_run = 0;
 	  state = 2; // Wait for track address
 	  break;
 	case 2:
-	  track[current_drive] = rx_ir;
+	  RXTA[current_drive] = rx_ir;
 	  int d = current_drive;
-	  int t = track[d];
-	  int s = sector[d];
+	  unsigned int t = RXTA[d];
+	  unsigned int s = RXSA[d];
 
-	  if( t < 0 || t > 0114 ){
+	  if( t > 0114 ){
 	    rx_ef = 1;
 	    RXER[current_drive] = 0040; // Tried to access track greater than 77
 	  } else if( s < 1 || s > 032 ){
@@ -285,12 +283,12 @@ void rx01_process()
 	    }
 	  }
 	  rx_df = 1;
-	  rx_run = 0;
 	  rx_ir = RXES[current_drive] & B8_MASK; // TODO, set bit 5 if deleted data mark found
 	  current_function = -1;
 	  state = 0;
 	  break;
 	}
+	rx_run = 0;
       }
       break;
     case F_INIT:
