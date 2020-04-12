@@ -161,6 +161,9 @@ void rx01_XDR()
     if( current_function == F_WRT_SECT ){
       rx_ir = ac & AC_MASK;
     }
+    if( current_function == F_WRT_DD){
+      rx_ir = ac & AC_MASK;
+    }
     rx_run = 1; // Continue current_function
   }
 }
@@ -249,6 +252,7 @@ void rx01_process()
       break;
     case F_WRT_SECT:
     case F_READ_SECT:
+    case F_WRT_DD:
       if( 0 == rx_tr ){
 	static char state = 0;
 	printf("State %d\n",state);
@@ -277,14 +281,17 @@ void rx01_process()
 	    RXER[current_drive] = 0070; // Desired sector not found after two revolutions
 	  } else { // Track and Sector number ok
 	    for(int i=0;i<128;i++){
-	      if( F_WRT_SECT == current_function ){
-		data[d][t][s][i] = sector_buffer[d][i];
-	      } else {
+	      if( F_READ_SECT == current_function ){
 		sector_buffer[d][i] = data[d][t][s][i];
+	      } else { // WRT_SECT and WRT_DD
+		data[d][t][s][i] = sector_buffer[d][i];
 	      }
 	    }
 	  }
 	  rx_df = 1;
+	  if( F_WRT_DD == current_function ){
+	    RXES[current_drive] |= 0b1000000; // DD bit
+	  }
 	  rx_ir = RXES[current_drive] & B8_MASK; // TODO, set bit 5 if deleted data mark found
 	  current_function = -1;
 	  state = 0;
@@ -300,6 +307,7 @@ void rx01_process()
 	init_delay = RX_INIT_DELAY;
 	RXES[0] = RX_INIT_DONE | (rx_ready[0] ? RX_DRIVE_RDY : 0);
 	RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
+	RXER[0] = RXER[1] = 0;
 	current_function = -1;
       } else {
 	init_delay--;
@@ -313,12 +321,6 @@ void rx01_process()
       // RX_INIT_DONE flag is explicitly reset here
       RXES[current_drive] &= ~RX_INIT_DONE;
       rx_ir = ((rx_ir << 8) & B12_MASK) | RXES[current_drive];
-      current_function = -1;
-      break;
-    case F_WRT_DD:
-      rx_df = 1;
-      rx_run = 0;
-      rx_ir = RXES[current_drive] & B8_MASK;
       current_function = -1;
       break;
     case F_READ_ERR:
