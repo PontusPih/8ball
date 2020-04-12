@@ -158,6 +158,9 @@ void rx01_XDR()
     if( current_function == F_READ_SECT ){
       rx_ir = ac & AC_MASK;
     }
+    if( current_function == F_WRT_SECT ){
+      rx_ir = ac & AC_MASK;
+    }
     rx_run = 1; // Continue current_function
   }
 }
@@ -245,11 +248,6 @@ void rx01_process()
       }
       break;
     case F_WRT_SECT:
-      rx_df = 1;
-      rx_run = 0;
-      rx_ir = RXES[current_drive] & B8_MASK;
-      current_function = -1;
-      break;
     case F_READ_SECT:
       if( 0 == rx_tr ){
 	static char state = 0;
@@ -279,7 +277,11 @@ void rx01_process()
 	    RXER[current_drive] = 0070; // Desired sector not found after two revolutions
 	  } else { // Track and Sector number ok
 	    for(int i=0;i<128;i++){
-	      data[d][t][s][i] = sector_buffer[d][i];
+	      if( F_WRT_SECT == current_function ){
+		data[d][t][s][i] = sector_buffer[d][i];
+	      } else {
+		sector_buffer[d][i] = data[d][t][s][i];
+	      }
 	    }
 	  }
 	  rx_df = 1;
