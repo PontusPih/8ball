@@ -128,6 +128,7 @@ short init_delay = RX_INIT_DELAY; // default delay to finish INIT
 #define RX_DRIVE_RDY 0200
 
 unsigned char data[2][77][26][128] = {0}; // Floppy data;
+unsigned char dd_mark[2][77][26] = {0}; // Deleted Data Mark;
 
 void rx01_LCD(short ir)
 {
@@ -181,13 +182,21 @@ void rx01_INIT()
   }
 }
 
+void dump_buffer(unsigned char *buf, int len)
+{
+  for( int i = 0; i < len; i++ ){
+    printf("%o ", buf[i]);
+  }
+  printf("\n");
+}
+
 void rx01_process()
 {
   if( ! rx_online ){
     return;
   }
   if( rx_run && ! rx_df && current_function >= 0){
-    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive]);
+    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o RXER %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive]);
 
     switch( current_function ) {
     case F_FILL_BUF:
@@ -259,7 +268,8 @@ void rx01_process()
 	rx_run = 0; // Turn off processing until RX_XDR is executed
 	switch(state){
 	case 0:
-	  RXES[current_drive] &= 0b00111100; // clear RXES bit 4,5,10 and 11
+	  RXES[current_drive] = 0; // clear RXES bit 4,5,10 and 11
+	  RXER[current_drive] = 0;
 	  rx_tr = 1; // Request sector address
 	  state = 1; // Wait for sector address
 	  break;
@@ -297,10 +307,13 @@ void rx01_process()
 	    }
 	  }
 	  rx_df = 1;
-	  if( F_WRT_DD == current_function ){
-	    RXES[current_drive] |= 0b1000000; // DD bit
-	  }
 	  rx_ir = RXES[current_drive] & B8_MASK; // TODO, set bit 5 if deleted data mark found
+	  if( F_WRT_DD == current_function ){
+	    dd_mark[d][t][s-1] = 0b1000000; // DD bit
+	  } else if( F_WRT_SECT == current_function ) {
+	    dd_mark[d][t][s-1] = 0; // DD bit
+	  }
+	  rx_ir |= dd_mark[d][t][s-1];
 	  current_function = -1;
 	  state = 0;
 	  break;
