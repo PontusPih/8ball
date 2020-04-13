@@ -255,7 +255,8 @@ void rx01_process()
     case F_WRT_DD:
       if( 0 == rx_tr ){
 	static char state = 0;
-	printf("State %d\n",state);
+	static char delay = 30;
+	rx_run = 0; // Turn off processing until RX_XDR is executed
 	switch(state){
 	case 0:
 	  RXES[current_drive] &= 0b00111100; // clear RXES bit 4,5,10 and 11
@@ -266,8 +267,15 @@ void rx01_process()
 	  RXSA[current_drive] = rx_ir;
 	  rx_tr = 1; // Request track address
 	  state = 2; // Wait for track address
+	  delay = 30;
 	  break;
 	case 2:
+	  if( 0 == delay-- ){
+	    state = 3;
+	  }
+	  rx_run = 1; // Force delay processing
+	  break;
+	case 3:
 	  RXTA[current_drive] = rx_ir;
 	  int d = current_drive;
 	  unsigned int t = RXTA[d];
@@ -297,7 +305,6 @@ void rx01_process()
 	  state = 0;
 	  break;
 	}
-	rx_run = 0;
       }
       break;
     case F_NOOP:
