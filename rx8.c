@@ -300,6 +300,10 @@ void rx01_process()
 	rx_run = 0;
       }
       break;
+    case F_NOOP:
+      current_function = -1;
+      rx_run = 0;
+      break;
     case F_INIT:
       if( 0 == init_delay ){
 	rx_run = 0;
