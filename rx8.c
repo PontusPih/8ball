@@ -290,9 +290,9 @@ void rx01_process()
 	  } else { // Track and Sector number ok
 	    for(int i=0;i<128;i++){
 	      if( F_READ_SECT == current_function ){
-		sector_buffer[d][i] = data[d][t][s][i];
+		sector_buffer[d][i] = data[d][t][s-1][i];
 	      } else { // WRT_SECT and WRT_DD
-		data[d][t][s][i] = sector_buffer[d][i];
+		data[d][t][s-1][i] = sector_buffer[d][i];
 	      }
 	    }
 	  }
@@ -320,6 +320,9 @@ void rx01_process()
 	RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
 	RXER[0] = RXER[1] = 0;
 	current_function = -1;
+	for(int i=0;i<128;i++){
+	  sector_buffer[0][i] = data[0][1][0][i];
+	}
       } else {
 	init_delay--;
       }
