@@ -288,6 +288,7 @@ void rx01_process()
 	case 3:
 	  RXTA[current_drive] = rx_ir;
 	  int d = current_drive;
+	  unsigned char dd = (F_WRT_DD == current_function) ? 0b1000000 : 0;
 	  unsigned int t = RXTA[d];
 	  unsigned int s = RXSA[d];
 
@@ -305,15 +306,14 @@ void rx01_process()
 		data[d][t][s-1][i] = sector_buffer[d][i];
 	      }
 	    }
+	    if( F_READ_SECT == current_function ){
+	      dd = dd_mark[d][t][s-1];
+	    } else {
+	      dd_mark[d][t][s-1] = dd;
+	    }
 	  }
 	  rx_df = 1;
-	  rx_ir = RXES[current_drive] & B8_MASK; // TODO, set bit 5 if deleted data mark found
-	  if( F_WRT_DD == current_function ){
-	    dd_mark[d][t][s-1] = 0b1000000; // DD bit
-	  } else if( F_WRT_SECT == current_function ) {
-	    dd_mark[d][t][s-1] = 0; // DD bit
-	  }
-	  rx_ir |= dd_mark[d][t][s-1];
+	  rx_ir = (RXES[current_drive] & B8_MASK) | dd;
 	  current_function = -1;
 	  state = 0;
 	  break;
