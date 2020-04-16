@@ -282,7 +282,7 @@ void rx01_process()
 	  break;
 	case 2:
 	  if( 0 == delay-- ){
-	    state = 3;
+	    state = 3; // Delay done, process transfered data
 	  }
 	  rx_run = 1; // Force delay processing
 	  break;
@@ -310,10 +310,11 @@ void rx01_process()
 	    if( F_READ_SECT == current_function ){
 	      dd = dd_mark[d][t][s-1];
 	    } else {
-	      dd_mark[d][t][s-1] = dd;
+	      dd_mark[d][t][s-1] = dd; // If F_WRT_DD, set a mark
 	    }
 	  }
 	  rx_df = 1;
+	  // dd will be set by F_WRT_DD even for invalid track and sector
 	  rx_ir = (RXES[current_drive] & B8_MASK) | dd;
 	  current_function = -1;
 	  state = 0;
@@ -349,10 +350,13 @@ void rx01_process()
       RXES[current_drive] &= ~RX_INIT_DONE;
       rx_ir = ((rx_ir << 8) & B12_MASK) | RXES[current_drive];
       current_function = -1;
+      // Maintenance manual mentions that F_READ_ERR should be done
+      // before F_READ_STAT because F_READ_STAT inevitably modifies
+      // RXES. No test seems to depend on this.
       break;
     case F_READ_ERR:
       rx_df = 1;
-      // The error register is only 8 bits shifts from controller to rx8e
+      // The error register is only 8 bits shifted from controller to rx8e
       rx_ir = ((rx_ir << 8) & B12_MASK) | (RXER[current_drive] & B8_MASK);
       current_function = -1;
       break;
