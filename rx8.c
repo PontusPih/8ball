@@ -205,27 +205,31 @@ void rx01_process()
     switch( current_function ) {
     case F_FILL_BUF:
       if( 0 == rx_tr ) {
+	static char state = 0;
 	static char cur = -1;
-	if( -1 == cur ){ // Start a sector transfer from the RX8E
+	rx_tr = 1; // Expect more data
+	switch( state ){
+	case 0: // Start a sector transfer from the RX8E
 	  cur = rx_bit_mode ? 127 : 63;
-	} else { // transfer one byte or word
+	  state = 1;
+	  break;
+	case 1: // transfer one byte or word
 	  if( rx_bit_mode ){ // 8 bit transfer
 	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & 0377;
 	  } else { // 12 bit transfer
+	    // TODO check bitpacking.
 	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) ((rx_ir & 07400) >> 8);
 	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & 0377;
 	  }
 	  cur --;
-	}
-
-	if( -1 == cur ){
-	  // If cur reached -1 again, one whole sector has been transferred
-	  rx_df = 1;
-	  rx_tr = 0; // No transfer request after last byte/word
-	  rx_ir = RXES[current_drive] & B8_MASK;
-	  current_function = -1;
-	} else {
-	  rx_tr = 1;
+	  if( -1 == cur){ // Has one whole sector been transfered?
+	    rx_df = 1;
+	    rx_tr = 0; // No transfer request after last byte/word
+	    rx_ir = RXES[current_drive] & B8_MASK;
+	    current_function = -1;
+	    state = 0;
+	  }
+	  break;
 	}
       }
       break;
