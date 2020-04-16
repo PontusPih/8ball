@@ -198,6 +198,10 @@ void rx01_process()
   if( rx_run && ! rx_df && current_function >= 0){
     printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o RXER %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive]);
 
+    rx_run = 0; // Stop the RX01 until more data is available from CPU
+                // The delayed functions will set rx_run = 1 until data
+                // a suitable number of instructions has passed.
+
     switch( current_function ) {
     case F_FILL_BUF:
       if( 0 == rx_tr ) {
@@ -223,7 +227,6 @@ void rx01_process()
 	} else {
 	  rx_tr = 1;
 	}
-	rx_run = 0;
       }
       break;
     case F_EMPTY_BUF:
@@ -256,7 +259,6 @@ void rx01_process()
 	  state = 0;
 	  break;
 	}
-	rx_run = 0;
       }
       break;
     case F_WRT_SECT:
@@ -265,7 +267,6 @@ void rx01_process()
       if( 0 == rx_tr ){
 	static char state = 0;
 	static char delay = 30;
-	rx_run = 0; // Turn off processing until RX_XDR is executed
 	switch(state){
 	case 0:
 	  RXES[current_drive] = 0; // clear RXES bit 4,5,10 and 11
@@ -322,7 +323,6 @@ void rx01_process()
       break;
     case F_NOOP:
       current_function = -1;
-      rx_run = 0;
       break;
     case F_INIT:
       if( 0 == init_delay ){
@@ -338,12 +338,12 @@ void rx01_process()
 	}
       } else {
 	init_delay--;
+	rx_run = 1; // Force delay processing
       }
       rx_ir = RXES[current_drive] & B12_MASK;
       break;
     case F_READ_STAT: // Requires one or two revolutions. about 250ms in total
       rx_df = 1;
-      rx_run = 0;
       // The status register is only 8 bits shifted from controller to rx8e
       // RX_INIT_DONE flag is explicitly reset here
       RXES[current_drive] &= ~RX_INIT_DONE;
@@ -352,7 +352,6 @@ void rx01_process()
       break;
     case F_READ_ERR:
       rx_df = 1;
-      rx_run = 0;
       // The error register is only 8 bits shifts from controller to rx8e
       rx_ir = ((rx_ir << 8) & B12_MASK) | (RXER[current_drive] & B8_MASK);
       current_function = -1;
