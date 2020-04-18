@@ -27,8 +27,8 @@ short rx_run = 0; // Run flag, indicates a function should start
 
 #define INTR_MASK 0b1
 
-static void rx01_LCD(short ac);
-static void rx01_XDR();
+static void rx01_LCD();
+static void rx01_XDR(short data);
 static void rx01_INIT();
 
 void rx8e_reset()
@@ -59,7 +59,7 @@ void rx8e_process(short mb)
     break;
   case RX_LCD: // Load Command (clear AC)
     rx_ir = ac & B12_MASK; // Load rx_ir parallel from OMNIBUS
-    rx01_LCD(rx_ir);
+    rx01_LCD();
     rx_bit_mode = (rx_ir & RX_MODE_MASK) ? 1 : 0;
     rx_maintenance_mode = (rx_ir & RX_MAINT_MASK) ? 1 : 0;
     if( rx_maintenance_mode ){
@@ -69,7 +69,9 @@ void rx8e_process(short mb)
     ac = (ac & LINK_MASK);
     break;
   case RX_XDR: // Transfer Data Register
-    rx01_XDR();
+    rx01_XDR(ac & AC_MASK);
+    // It is safe to always set AC here. It will remain unchanged in
+    // AC -> IR transfers because AC and IR are equal then.
     if( rx_bit_mode ){
       ac |= rx_ir & 0377; // 8-bit mode ORs with AC
     } else {
@@ -130,7 +132,7 @@ short init_delay = RX_INIT_DELAY; // default delay to finish INIT
 unsigned char data[2][77][26][128] = {0}; // Floppy data;
 unsigned char dd_mark[2][77][26] = {0}; // Deleted Data Mark;
 
-void rx01_LCD(short ir)
+void rx01_LCD()
 {
   if( ! rx_online ){
     return;
@@ -138,34 +140,31 @@ void rx01_LCD(short ir)
   if( ! rx_run && ! rx_df ) {
     // Unless the done flag is low, the drive controller will not
     // accept a new command.
-    current_function = (ir & RX_FUNC_MASK) >> 1;
-    current_drive = (ir & RX_DRVSEL_MASK) ? 1 : 0;
+    current_function = (rx_ir & RX_FUNC_MASK) >> 1;
+    current_drive = (rx_ir & RX_DRVSEL_MASK) ? 1 : 0;
     rx_run = 1;
   }
 }
 
-void rx01_XDR()
+void rx01_XDR(short data)
 {
-  if( ! rx_online ){
-    return;
-  }
-  if( rx_maintenance_mode ){ // Don't set rx_run flag
-    return;
-  }
-  if( ! rx_df && current_function >= 0){
-    if( current_function == F_FILL_BUF ){
-      rx_ir = ac & AC_MASK;
+  if( rx_online && ! rx_maintenance_mode && ! rx_df && current_function >= 0){
+    // Drive is online, not in maintenance mode and the current function is not done
+    rx_run = 1; // Assume current_function will continue
+    switch( current_function ) {
+    case F_FILL_BUF:
+    case F_READ_SECT:
+    case F_WRT_SECT:
+    case F_WRT_DD:
+      rx_ir = data;
+      rx_run = 1; // Continue current_function
+      break;
+    case F_EMPTY_BUF:
+      rx_run = 1; // Continue current_function
+      break;
+    default:
+      rx_run = 0; // No need to continue current_function
     }
-    if( current_function == F_READ_SECT ){
-      rx_ir = ac & AC_MASK;
-    }
-    if( current_function == F_WRT_SECT ){
-      rx_ir = ac & AC_MASK;
-    }
-    if( current_function == F_WRT_DD){
-      rx_ir = ac & AC_MASK;
-    }
-    rx_run = 1; // Continue current_function
   }
 }
 
