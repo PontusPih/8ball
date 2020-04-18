@@ -25,7 +25,7 @@ short rx_maintenance_mode = 0; // Maintenance mode. 0 = off, !0 = on
 short rx_intr_enabled = 0; // RX8E may generate interrupts
 short rx_run = 0; // Run flag, indicates a function should start
 
-#define INTR_MASK 0b1
+#define RX_INTR_MASK 0b1
 
 static void rx01_LCD();
 static void rx01_XDR(short data);
@@ -97,7 +97,7 @@ void rx8e_process(short mb)
     }
     break;
   case RX_INTR: // enable/disable INTeRrupts
-    rx_intr_enabled = ac & INTR_MASK;
+    rx_intr_enabled = ac & RX_INTR_MASK;
     break;
   case RX_INIT: // INITialize RX01 drive
     rx8e_reset();
@@ -123,8 +123,7 @@ short current_function = -1; // Function being performed, may take
 short current_drive = 0; // Drive the current function is performed on
 short rx_ready[2] = {0}; // 0 - Door open or no floppy present TODO, load floppy from console
                          // 1 - Door closed and floppy present
-#define RX_INIT_DELAY 30
-short init_delay = RX_INIT_DELAY; // default delay to finish INIT
+#define RX_DELAY 30
 
 #define RX_INIT_DONE 04
 #define RX_DRIVE_RDY 0200
@@ -176,7 +175,6 @@ void rx01_INIT()
   if( current_function != F_INIT ) {
     current_function = F_INIT;
     current_drive = 0;
-    init_delay = RX_INIT_DELAY;
     rx_run = 1;
   }
 }
@@ -195,7 +193,10 @@ void rx01_process()
     return;
   }
   if( rx_run && ! rx_df && current_function >= 0){
-    printf("Func %o delay %d rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o RXER %o\n", current_function, init_delay, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive]);
+    extern char trace_instruction;
+    if( trace_instruction ){
+      printf("Func %o rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o RXER %o\n", current_function, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive]);
+    }
 
     rx_run = 0; // Stop the RX01 until more data is available from CPU
                 // The delayed functions will set rx_run = 1 until data
@@ -311,9 +312,9 @@ void rx01_process()
 	      }
 	    }
 	    if( F_READ_SECT == current_function ){
-	      dd = dd_mark[d][t][s-1];
+	      dd = dd_mark[d][t][s-1]; // If READ, get DD mark from disk
 	    } else {
-	      dd_mark[d][t][s-1] = dd; // If F_WRT_DD, set a mark
+	      dd_mark[d][t][s-1] = dd; // If F_WRT_DD, set a mark on disk
 	    }
 	  }
 	  rx_df = 1;
@@ -329,22 +330,25 @@ void rx01_process()
       current_function = -1;
       break;
     case F_INIT:
-      if( 0 == init_delay ){
-	rx_run = 0;
-	rx_df = 1;
-	init_delay = RX_INIT_DELAY;
-	RXES[0] = RX_INIT_DONE | (rx_ready[0] ? RX_DRIVE_RDY : 0);
-	RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
-	RXER[0] = RXER[1] = 0;
-	current_function = -1;
-	for(int i=0;i<128;i++){
-	  sector_buffer[0][i] = data[0][1][0][i];
+      {
+	static short init_delay = RX_DELAY;
+	if( 0 == init_delay ){
+	  rx_run = 0;
+	  rx_df = 1;
+	  init_delay = RX_DELAY;
+	  RXES[0] = RX_INIT_DONE | (rx_ready[0] ? RX_DRIVE_RDY : 0);
+	  RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
+	  RXER[0] = RXER[1] = 0;
+	  rx_ir = RXES[0] & B12_MASK;
+	  current_function = -1;
+	  for(int i=0;i<128;i++){
+	    sector_buffer[0][i] = data[0][1][0][i];
+	  }
+	} else {
+	  init_delay--;
+	  rx_run = 1; // Force delay processing
 	}
-      } else {
-	init_delay--;
-	rx_run = 1; // Force delay processing
       }
-      rx_ir = RXES[current_drive] & B12_MASK;
       break;
     case F_READ_STAT: // Requires one or two revolutions. about 250ms in total
       rx_df = 1;
