@@ -270,6 +270,24 @@ question decides if the controller and drives is tested (0000) or not
 
 Already I was helped by test T2 to get the flags handling right.
 
+Update 12-APR-2020
+
+Phew, this test program is tricky to get right. I want to test all
+relevant combinations and have noted them in device.test
+
+Comments on row 2749 through 2757 in DIRXA is probably wrong, the
+DRIVE READY bit in the status register will be cleared by the
+F_READ_SECT and F_WRT_SECT functions. At least if the test _code_ is
+to be believed.
+
+Update 14-APR-2020
+
+Last bug fixed! RX emulator now passes Interface, Controller AND Drive
+maindecs! Next I should look at DIRXB if it makes sense to run in an
+emulator.
+
+Then I must look at reading an actual floppy image.
+
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
 [3] http://www.ultimate.com/phil/xy/
