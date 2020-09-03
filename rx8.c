@@ -40,6 +40,7 @@ void rx8e_reset()
   rx_bit_mode = 1;
   rx_maintenance_mode = 0;
   rx_intr_enabled = 0;
+  cpu_lower_interrupt(RX_INTR_FLAG);
   rx01_INIT();
 }
 
