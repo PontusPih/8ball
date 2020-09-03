@@ -74,7 +74,7 @@ void rx8e_process(short mb)
     // It is safe to always set AC here. It will remain unchanged in
     // AC -> IR transfers because AC and IR are equal then.
     if( rx_bit_mode ){
-      ac |= rx_ir & 0377; // 8-bit mode ORs with AC
+      ac |= rx_ir & B8_MASK; // 8-bit mode ORs with AC
     } else {
       ac = (ac & LINK_MASK) | (rx_ir & B12_MASK) ; // 12-bit mode overwrites
     }
@@ -125,9 +125,9 @@ short current_drive = 0; // Drive the current function is performed on
 short rx_ready[2] = {0}; // 0 - Door open or no floppy present TODO, load floppy from console
                          // 1 - Door closed and floppy present
 #define RX_DELAY 30
-
 #define RX_INIT_DONE 04
 #define RX_DRIVE_RDY 0200
+#define RX_DD_MARK 0100
 
 unsigned char data[2][77][26][128] = {0}; // Floppy data;
 unsigned char dd_mark[2][77][26] = {0}; // Deleted Data Mark;
@@ -180,14 +180,6 @@ void rx01_INIT()
   }
 }
 
-void dump_buffer(unsigned char *buf, int len)
-{
-  for( int i = 0; i < len; i++ ){
-    printf("%o ", buf[i]);
-  }
-  printf("\n");
-}
-
 void rx01_process()
 {
   if( ! rx_online ){
@@ -200,7 +192,7 @@ void rx01_process()
     }
 
     rx_run = 0; // Stop the RX01 until more data is available from CPU
-                // The delayed functions will set rx_run = 1 until data
+                // The delayed functions will set rx_run = 1 until
                 // a suitable number of instructions has passed.
 
     switch( current_function ) {
@@ -216,11 +208,11 @@ void rx01_process()
 	  break;
 	case 1: // transfer one byte or word
 	  if( rx_bit_mode ){ // 8 bit transfer
-	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & 0377;
+	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & B8_MASK;
 	  } else { // 12 bit transfer
 	    // TODO check bitpacking.
 	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) ((rx_ir & 07400) >> 8);
-	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & 0377;
+	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & B8_MASK;
 	  }
 	  cur --;
 	  if( -1 == cur){ // Has one whole sector been transfered?
@@ -294,7 +286,7 @@ void rx01_process()
 	case 3:
 	  RXTA[current_drive] = rx_ir;
 	  int d = current_drive;
-	  unsigned char dd = (F_WRT_DD == current_function) ? 0b1000000 : 0;
+	  unsigned char dd = (F_WRT_DD == current_function) ? RX_DD_MARK : 0;
 	  unsigned int t = RXTA[d];
 	  unsigned int s = RXSA[d];
 
