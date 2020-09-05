@@ -288,8 +288,62 @@ emulator.
 
 Then I must look at reading an actual floppy image.
 
+Update 3-SEP-2020
+
+I got more or less challenged into getting OS/8 running using an RX
+floppy. So, I added code to load an image into memory and took a
+bootloader from SIMH. A nearly identical loader is listed in the OS8
+Handbook Update from 1977 [6]. I did not get far, the loader only put
+garbage into memory. I realised after a while that the loader looked
+for drive 1 and I had mounted the floppy in drive 0. Easliy fixed but
+there was still only garbage loaded. But I had a hunch from before
+that the bits in the floppy images was packed differently from what I
+had assumed. This turned out to be the case and some fiddling with the
+unpacking code I got good data in. However, OS/8 would not load.
+
+Update 4-SEP-2020
+
+I went back and ran the MAINDECS and they promptly failed. The data
+written was not read back correctly. A bitpacked sector is loaded into
+the sector buffer and is only unpacked when the controller reads the
+data from the drive. I had forgotten that I must then pack the bits
+when they are written to the sector buffer in order for the MAINDECS
+to read the back. I fixed that. However, OS/8 would not load.
+
+Update-5-SEP-2020
+
+Unable to let a problem like this rest I stayed up late again and
+followed the code flow in both SIMH and 8ball. And I could verify that
+8ball could load the top pages in field 0 and 1 correctly but would
+halt much earlier than SIMH. No luck understanding why..
+
+Update-6-SEP-2020
+
+Ok, progress! I improved the output from code tracing in 8ball and
+carefully followed the execution of OS/8's bootstrap. I could now see
+that the boot loader tries to read from track 1 and sector 0211! Well,
+the larges allowed sector is 032 so my RX emulator will raise the
+error flag which OS/8 checks and halts.
+
+I looked at SIMH(cheating again!) and it turns out that I assumed the
+RXTA and RXSA could be 12 bit as long as I checked the boundaries,
+believing that the software was responsible for staying within the
+bounds. BUT, the RXTA and RXSA is documented as being 8 bit wide(in
+the RX01 maintenance manual[7]). So, will it be possible for software
+to ask for sector 0211? No, 0211 fit well in 8 bits, something is
+wonky?!
+
+SIMH uses a bitmask with the lowest seven bits set. And there is a
+comment next to it which says "cf Jones!!". So I checked with Dave
+Jones page on the RX01. And he notes that RXTA is 8 bits but RXSA is
+only 7! Seems like he is right and the RX01 maintenance manual is
+wrong. With this information the loader gets a bit further. However,
+OS/8 would not load!
+
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
 [3] http://www.ultimate.com/phil/xy/
 [4] http://homepage.cs.uiowa.edu/~jones/pdp8/emulator.txt.Z
 [5] http://jeelabs.org/2016/10/stm32f103-emulating-a-pdp-8/
+[6] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/os8/DEC-S8-OSHBA-A_DN4_OS8_Handbook_Update_Sep77.pdf
+[7] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/disc/rx01/EK-RX01-MM-002_maint_Dec76.pdf
