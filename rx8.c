@@ -213,23 +213,36 @@ void rx01_process()
     case F_FILL_BUF:
       if( 0 == rx_tr ) {
 	static char state = 0;
-	static char cur = -1;
+	static char words = -1; // Number of words left to transfer
+	static int ptr = 0;     // Pointer to byte where next word starts
 	rx_tr = 1; // Expect more data
 	switch( state ){
 	case 0: // Start a sector transfer from the RX8E
-	  cur = rx_bit_mode ? 127 : 63;
+	  words = rx_bit_mode ? 127 : 63;
+	  ptr = 0;
 	  state = 1;
 	  break;
-	case 1: // transfer one byte or word
-	  if( rx_bit_mode ){ // 8 bit transfer
-	    sector_buffer[current_drive][127 - cur] = (char) rx_ir & B8_MASK;
-	  } else { // 12 bit transfer
-	    // TODO check bitpacking.
-	    sector_buffer[current_drive][127 - 2*cur - 1] = (char) ((rx_ir & 07400) >> 8);
-	    sector_buffer[current_drive][127 - 2*cur] = (char) rx_ir & B8_MASK;
+	case 1:
+	  if( rx_bit_mode ){ // Transfer one byte
+	    sector_buffer[current_drive][127 - words] = (char) rx_ir & B8_MASK;
+	  } else { // Transfer one word
+            // Byte index:    0   1   2   3   4   5   6   7   8...
+            // Word layout: [aa][ab][bb][cc][cd][dd][ee][ef][ff]...
+	    if( (63 - words) & 1 ){ // Odd word address
+	      sector_buffer[current_drive][ptr] &= (B4_MASK << 4); // Keep top 4 bits
+	      sector_buffer[current_drive][ptr] |= (char) ((rx_ir >> 8) & B4_MASK); // Set new bottom 4 bits
+	      sector_buffer[current_drive][ptr+1] = (char) rx_ir & B8_MASK;
+	      ptr += 2;
+	    } else { // Even word address
+	      sector_buffer[current_drive][ptr] = (rx_ir >> 4) & B8_MASK;
+	      sector_buffer[current_drive][ptr+1] &= (B4_MASK); // Keep bottom 4 bits
+	      sector_buffer[current_drive][ptr+1] |= (rx_ir & B4_MASK) << 4; // Set new top 4 bits
+	      ptr ++;
+	    }
 	  }
-	  cur --;
-	  if( -1 == cur){ // Has one whole sector been transfered?
+
+	  words --;
+	  if( -1 == words){ // One whole sector has been transferred
 	    rx_df = 1;
 	    rx_tr = 0; // No transfer request after last byte/word
 	    rx_ir = RXES[current_drive] & B8_MASK;
@@ -243,22 +256,33 @@ void rx01_process()
     case F_EMPTY_BUF:
       if( 0 == rx_tr ){
 	static char state = 0;
-	static char cur = -1;
+	static char words = -1; // Number of words left to transfer
+	static int ptr = 0;     // Pointer to byte where next word starts
 	switch( state ){
 	case 0: // Start a sector transfer to the RX8E
-	  cur = rx_bit_mode ? 127 : 63;
+	  words = rx_bit_mode ? 127 : 63;
+	  ptr = 0;
 	  state = 1;
 	  // Fall through to first transfer
 	case 1: // Transfer sector data
-	  if( rx_bit_mode ){
-	    rx_ir = sector_buffer[current_drive][127 - cur];
-	  } else {
-	    rx_ir = sector_buffer[current_drive][127 - 2*cur - 1];
-	    rx_ir = rx_ir << 8 | sector_buffer[current_drive][127 - 2*cur];
+	  if( rx_bit_mode ){ // Transfer one byte
+	    rx_ir = sector_buffer[current_drive][127 - words] & B8_MASK;
+	  } else { // Transfer one word
+            // Byte index:    0   1   2   3   4   5   6   7   8...
+            // Word layout: [aa][ab][bb][cc][cd][dd][ee][ef][ff]...
+	    if( (63 - words) & 1 ){ // Odd word address
+	      rx_ir = sector_buffer[current_drive][ptr] & B4_MASK;
+	      rx_ir = rx_ir << 8 | sector_buffer[current_drive][ptr+1];
+	      ptr += 2;
+	    } else { // Even word address
+	      rx_ir = sector_buffer[current_drive][ptr] << 4;
+	      rx_ir |= (sector_buffer[current_drive][ptr+1] >> 4) & B4_MASK;
+	      ptr ++;
+	    }
 	  }
-	  cur --;
-	  if( -1 == cur ) {
-	    state = 2; // Last bit of data to transfer
+	  words --;
+	  if( -1 == words ) {
+	    state = 2; // Last bit of data transferred
 	  }
 	  rx_tr = 1;
 	  break;
@@ -285,7 +309,7 @@ void rx01_process()
 	  state = 1; // Wait for sector address
 	  break;
 	case 1:
-	  RXSA[current_drive] = rx_ir;
+	  RXSA[current_drive] = rx_ir & 0177;
 	  rx_tr = 1; // Request track address
 	  state = 2; // Wait for track address
 	  break;
@@ -297,7 +321,7 @@ void rx01_process()
 	  rx_run = 1; // Force delay processing
 	  break;
 	case 3:
-	  RXTA[current_drive] = rx_ir;
+	  RXTA[current_drive] = rx_ir & 0377;
 	  int d = current_drive;
 	  unsigned char dd = (F_WRT_DD == current_function) ? RX_DD_MARK : 0;
 	  unsigned int t = RXTA[d];

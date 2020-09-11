@@ -48,6 +48,7 @@ void cpu_lower_interrupt(short flag);
 #define B12_MASK 07777
 #define B8_MASK 0377
 #define B7_MASK 0177
+#define B4_MASK 017
 #define IF_MASK 07000
 #define LINK_MASK 010000
 #define LINK_AC_MASK 017777
