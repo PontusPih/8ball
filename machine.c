@@ -352,6 +352,9 @@ void machine_srv()
       case 'P': // Stop at
         machine_set_stop_at(buf2short(buf,2));
         break;
+      case 'X': // RX byte stream
+	// TODO serial com support for RX
+	break;
       }
       break;
     case 'Q':

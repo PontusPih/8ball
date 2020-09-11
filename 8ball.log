@@ -340,6 +340,13 @@ only 7! Seems like he is right and the RX01 maintenance manual is
 wrong. With this information the loader gets a bit further. However,
 OS/8 would not load!
 
+Update-6-SEP-2020 (Late night addendum)
+
+Following the boot sequence of OS/8 I could see that it loads the NOOP
+command of the RX01. After that it would just hang waiting for the
+done flag. Apparently the NOOP command is not quite a NO OPeration, it
+raises the done flag when it is done doing nothing. OS8 finally boots!
+
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf
 [3] http://www.ultimate.com/phil/xy/
