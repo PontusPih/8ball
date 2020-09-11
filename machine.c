@@ -156,6 +156,14 @@ char machine_run(char single)
     }
 #endif
 
+    if( trace_instruction ){
+#ifdef PTY_SRV
+#else
+      // TODO handle this in console.c
+      console_trace_instruction();
+#endif
+    }
+
     // This loops calls each emulated device in turn and any call that
     // uses recv_cmd() must return to console mode immediately if the
     // CONSOLE byte has been received.
@@ -191,9 +199,6 @@ char machine_run(char single)
     if( trace_instruction ){
 #ifdef PTY_SRV
       return 'D';
-#else
-      // TODO handle this in console.c
-      console_trace_instruction();
 #endif
     }
   }

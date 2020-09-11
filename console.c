@@ -152,14 +152,43 @@ void print_instruction(short pc)
       printf("  ");
     }
 
+    if( (cur & I_MASK) && (cur & IF_MASK) < JMS ){
+      // Indirect addressing for MRI instructions uses DF, otherwise it's set by IF in PC
+      addr |= machine_examine_reg(DF) << 12;
+    }
+
+    if( (cur & I_MASK) && (cur & IF_MASK) < JMP ){
+      short direct_addr = machine_direct_addr(pc);
+      if( (direct_addr & (PAGE_MASK|WORD_MASK)) >= 010
+	  &&
+	  (direct_addr & (PAGE_MASK|WORD_MASK)) <= 017 ){
+	short mem_val = machine_examine_mem(direct_addr);
+	addr = (addr & FIELD_MASK) | (INC_12BIT(mem_val) & B12_MASK);  // Fake autoindexing
+      }
+    }
+
     if( cur & I_MASK ){
-      printf(" I %.5o (%.5o)", machine_direct_addr(pc), addr);
+      printf(" I %.5o -> %.5o", machine_direct_addr(pc), addr);
     } else {
       printf("   %.5o", addr);
     }
 
     if( (cur & IF_MASK) < JMS ){
-      printf(" [%.4o]", machine_examine_mem(addr));
+      printf(" == %.4o", machine_examine_mem(addr));
+    }
+
+    switch( cur & IF_MASK ){
+    case AND:
+      printf(" AC(%.5o)", machine_examine_reg(AC));
+      break;
+    case TAD:
+      printf(" AC(%.5o)", machine_examine_reg(AC));
+      break;
+    case DCA:
+      printf(" AC(%.5o)", machine_examine_reg(AC));
+      break;
+    default:
+      break;
     }
 
   } else {
@@ -337,6 +366,9 @@ void print_instruction(short pc)
 	    break;
 	  case F_WRT_SECT:
 	    printf("WRITE SECTOR");
+	    break;
+	  case F_NOOP:
+	    printf("NOOP");
 	    break;
 	  case F_READ_SECT:
 	    printf("READ SECTOR");

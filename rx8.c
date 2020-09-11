@@ -199,8 +199,10 @@ void rx01_process()
   }
   if( rx_run && ! rx_df && current_function >= 0){
     extern char trace_instruction;
-    if( trace_instruction ){
-      printf("Func %o rx_run %d rx_df %o rx_ir %o rx_bit_mode %o maint %o drive %o RXES %o RXER %o\n", current_function, rx_run, rx_df, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive]);
+    static char delay = RX_DELAY;
+
+    if( trace_instruction && (delay == RX_DELAY || delay == 0) ){
+      printf("Func %o delay=%o ir=%o bit_mode=%o maint=%o drv=%o RXES=%o RXER=%o RXTA=%o RXSA=%o\n", current_function, delay, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive], RXTA[current_drive], RXSA[current_drive]);
     }
 
     rx_run = 0; // Stop the RX01 until more data is available from CPU
@@ -275,7 +277,6 @@ void rx01_process()
     case F_WRT_DD:
       if( 0 == rx_tr ){
 	static char state = 0;
-	static char delay = 30;
 	switch(state){
 	case 0:
 	  RXES[current_drive] = 0; // clear RXES bit 4,5,10 and 11
@@ -287,11 +288,11 @@ void rx01_process()
 	  RXSA[current_drive] = rx_ir;
 	  rx_tr = 1; // Request track address
 	  state = 2; // Wait for track address
-	  delay = 30;
 	  break;
 	case 2:
 	  if( 0 == delay-- ){
 	    state = 3; // Delay done, process transfered data
+	    delay = RX_DELAY;
 	  }
 	  rx_run = 1; // Force delay processing
 	  break;
@@ -336,11 +337,10 @@ void rx01_process()
       break;
     case F_INIT:
       {
-	static short init_delay = RX_DELAY;
-	if( 0 == init_delay ){
+	if( 0 == delay ){
 	  rx_run = 0;
 	  rx_df = 1;
-	  init_delay = RX_DELAY;
+	  delay = RX_DELAY;
 	  RXES[0] = RX_INIT_DONE | (rx_ready[0] ? RX_DRIVE_RDY : 0);
 	  RXES[1] = RX_INIT_DONE | (rx_ready[1] ? RX_DRIVE_RDY : 0);
 	  RXER[0] = RXER[1] = 0;
@@ -350,7 +350,7 @@ void rx01_process()
 	    sector_buffer[0][i] = data[0][1][0][i];
 	  }
 	} else {
-	  init_delay--;
+	  delay--;
 	  rx_run = 1; // Force delay processing
 	}
       }
