@@ -358,6 +358,7 @@ void rx01_process()
       break;
     case F_NOOP:
       current_function = -1;
+      rx_df = 1;
       break;
     case F_INIT:
       {
