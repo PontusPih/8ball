@@ -1,0 +1,32 @@
+mem[022] = 06755;                      /* 22, SDN */
+mem[023] = 05022;                      /* 23, JMP .-1 */
+mem[024] = 07126;                      /* 24, CLL CML RTL      ; read command + */
+mem[025] = 01060;                      /* 25, TAD UNIT         ; unit no */
+mem[026] = 06751;                      /* 26, LCD              ; load read+unit */
+mem[027] = 07201;                      /* 27, CLA IAC          ; AC = 1 */
+mem[030] = 04053;                      /* 30, JMS LOAD         ; load sector */
+mem[031] = 04053;                      /* 31, JMS LOAD         ; load track */
+mem[032] = 07104;                      /* 32, CLL RAL          ; AC = 2 */
+mem[033] = 06755;                      /* 33, SDN */
+mem[034] = 05054;                      /* 34, JMP LOAD+1 */
+mem[035] = 06754;                      /* 35, SER */
+mem[036] = 07450;                      /* 36, SNA              ; more to do? */
+mem[037] = 07610;                      /* 37, CLA SKP          ; error */
+mem[040] = 05046;                      /* 40, JMP 46           ; go empty */
+mem[041] = 07402;                      /* 41-45, HALT          ; error */
+mem[042] = 07402;
+mem[043] = 07402;
+mem[044] = 07402;
+mem[045] = 07402;
+mem[046] = 06751;                      /* 46, LCD              ; load empty */
+mem[047] = 04053;                      /* 47, JMS LOAD         ; get data */
+mem[050] = 03002;                      /* 50, DCA 2            ; store */
+mem[051] = 02050;                      /* 51, ISZ 50           ; incr store */
+mem[052] = 05047;                      /* 52, JMP 47           ; loop until done */
+mem[053] = 00000;                      /* LOAD, 0 */
+mem[054] = 06753;                      /* 54, STR */
+mem[055] = 05033;                      /* 55, JMP 33 */
+mem[056] = 06752;                      /* 56, XDR */
+mem[057] = 05453;                      /* 57, JMP I LOAD */
+mem[060] = 07004;                      /* UNIT, CML RAL        ; for unit 0 */
+mem[061] = 06030;                      /* 61, KCC */

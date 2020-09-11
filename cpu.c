@@ -44,6 +44,7 @@ void cpu_init(void){
     breakpoints[i] = 0;
   }
 #include "rimloader.h"
+#include "rxloader.h"
   pc = 07756;
 }
 
