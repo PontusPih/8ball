@@ -1246,8 +1246,10 @@ void console(void)
 	  printf("Floppy image \"%s\" mounted on drive %s\n",_3rd_str, _2nd_str);
 	  if( _2nd_str[0] == '0' ){
 	    machine_deposit_reg(RX_READY_0,1);
+	    machine_mount_rx_image(0,_3rd_str);
 	  } else {
 	    machine_deposit_reg(RX_READY_1,1);
+	    machine_mount_rx_image(1,_3rd_str);
 	  }
 	} else {
 	  printf("Syntax ERROR, drive number must be 0 or 1 not %s\n", _2nd_str);

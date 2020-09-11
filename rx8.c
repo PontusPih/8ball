@@ -180,6 +180,18 @@ void rx01_INIT()
   }
 }
 
+void rx01_fill(short drive, char *buf)
+{
+  int ptr = 0;
+  for(int i = 0;i < 77; i++){
+    for(int j = 0;j < 26; j++){
+      for(int k = 0; k < 128; k++){
+	data[drive][i][j][k] = buf[ptr++];
+      }
+    }
+  }
+}
+
 void rx01_process()
 {
   if( ! rx_online ){

@@ -761,3 +761,31 @@ void machine_halt()
   }
 #endif
 }
+
+void machine_mount_rx_image(short drive, char *filename)
+{
+#ifdef SERVER_BUILD
+  FILE *image = fopen(filename, "r");
+  char buf[77*26*128] = {0};
+  int bytes_left = 77*26*128;
+
+  if( NULL == image ){
+    perror("Unable to open RX image");
+    return;
+  } else {
+    char *buf_ptr = buf;
+    while(bytes_left) {
+      int bytes_read = fread(buf_ptr, 1, bytes_left, image);
+      if( bytes_read == 0 ) {
+	perror("Unable to read from RX image");
+	fclose(image);
+	return;
+      }
+      bytes_left -= bytes_read;
+      buf_ptr += bytes_read;
+    }
+    rx01_fill(drive, buf);
+  }
+  fclose(image);
+#endif
+}

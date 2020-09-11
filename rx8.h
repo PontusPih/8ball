@@ -38,6 +38,7 @@ extern short rx_ready[2];
 void rx8e_reset();
 void rx8e_process(short mb);
 void rx01_process();
+void rx01_fill(short drive, char *buf);
 
 // RX01 functions
 #define F_FILL_BUF  0b000
