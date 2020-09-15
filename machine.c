@@ -9,104 +9,17 @@
 #include "cpu.h"
 #include "tty.h"
 #include "rx8.h"
-#include "serial_com.h"
 #include "machine.h"
-
-char com_buf_len = 0;
-char com_buf[128];
-char trace_instruction = 0;
-short internal_stop_at = -1;
 
 #define UNUSED(x) (void)(x);
 
-#ifdef PTY_SRV
-#define _XOPEN_SOURCE 700
-
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-int ptm = -1; // PTY master handle
-int tty_skip_count = 0;
-#include <string.h>
-#endif
-
-#ifdef PTY_CLI
-#include "console.h"
-#define _XOPEN_SOURCE 600
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdio.h>
-#define _BSD_SOURCE 1
-#define __USE_MISC 1
-#include <termios.h>
-int pts = -1; // PTY slave handle
-#endif
-
-#ifdef SERVER_BUILD
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include "console.h"
-int tty_skip_count = 0;
-int interrupted_by_console = 0;
-#endif
-
 void machine_setup(char *pty_name)
 {
-#ifdef SERVER_BUILD
-  UNUSED(pty_name); // To avoid warning.
-  cpu_init();
-  tty_reset();
-  rx8e_reset();
-#endif
-
-
-#ifdef PTY_SRV
-  UNUSED(pty_name); // To avoid warning.
-  cpu_init();
-  tty_reset();
-  rx8e_reset();
-
-  if( (ptm = posix_openpt(O_RDWR|O_NOCTTY)) == -1){
-    printf("Unable to open PTMX\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if( grantpt(ptm) == -1 ){
-    printf("grantp() failed\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if( unlockpt(ptm) == -1 ){
-    printf("Unable to unlock PTY\n");
-    exit(EXIT_FAILURE);
-  }
-
-  int fd = creat("ptsname.txt", S_IRUSR | S_IWUSR);
-  write(fd, ptsname(ptm), strlen(ptsname(ptm)));
-  close(fd);
-#endif
-
-
 #ifdef PTY_CLI
-  if( pty_name == NULL ){
-    printf("Please give a PTY name\n");
-    exit(EXIT_FAILURE);
-  }
-  pts = open(pty_name, O_RDWR|O_NOCTTY);
-  
-  if( pts == -1 ){
-    printf("Unable to open %s\n", pty_name);
-    exit(EXIT_FAILURE);
-  }
-  
-  struct termios cons_old_settings;
-  struct termios cons_new_settings;
-  tcgetattr(pts, &cons_old_settings);
-  cons_new_settings = cons_old_settings;
-  cfmakeraw(&cons_new_settings);
-  tcsetattr(pts, TCSANOW, &cons_new_settings);
+  frontend_setup(pty_name);
+#else
+  UNUSED(pty_name); // To avoid warning.
+  backend_setup();
 #endif
 }
 
@@ -139,233 +52,12 @@ void write_tty_byte(char output)
 #endif
 }
 
-
 char machine_run(char single)
 {
-#if defined(PTY_SRV) || defined(SERVER_BUILD)
-  while(1) {
-#ifdef PTY_SRV
-    if( recv_console_break(ptm) ){
-      return 'I';
-    }
-#endif
-#ifdef SERVER_BUILD
-    if( interrupted_by_console ){
-      interrupted_by_console = 0;
-      return 'I';
-    }
-#endif
-
-    if( trace_instruction ){
-#ifdef PTY_SRV
+#ifdef PTY_CLI
+  frontend_run(single);
 #else
-      // TODO handle this in console.c
-      console_trace_instruction();
-#endif
-    }
-
-    // This loops calls each emulated device in turn and any call that
-    // uses recv_cmd() must return to console mode immediately if the
-    // CONSOLE byte has been received.
-
-    // Any device that can should be able to resume state if CONSOLE
-    // has been recv:d
-
-    if( single || tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
-      tty_skip_count = 0;
-      if( tty_process() == -1 ){
-        return 'I';
-      }
-    }
-
-    rx01_process();
-  
-    if( cpu_process() == -1 ){
-      return 'H';
-    }
-
-    if( breakpoints[pc] & BREAKPOINT ){
-      return 'B';
-    }
-
-    if( internal_stop_at >= 0 && pc == internal_stop_at ){
-      return 'P';
-    }      
-
-    if( single ){
-      return 'S';
-    }
-
-    if( trace_instruction ){
-#ifdef PTY_SRV
-      return 'D';
-#endif
-    }
-  }
-#endif
-
-#ifdef PTY_CLI
-  unsigned char run_buf[1] = { single ? 'S' : 'R' };
-  send_cmd(pts, run_buf, 1);
-
-  while(1) {
-    unsigned char *buf;
-    recv_cmd(pts, &buf);
-    switch(buf[0]) {
-    case 'I': // Interrupted
-      send_cmd(pts, (unsigned char*)"C",1);
-    case 'H': // CPU has halted
-    case 'B': // Breakpoint hit
-    case 'S': // Single step done
-    case 'P': // stop_at hit
-      return buf[0];
-      break;
-    case 'T': // TTY Request
-      if( buf[1] == 'R' ){
-        char output;
-        char res = console_read_tty_byte(&output);
-        unsigned char buf[2] = { res, output };
-        send_cmd(pts, buf, 2);
-      } else {
-        console_write_tty_byte(buf[2]);
-      }
-      break;
-    case 'D': // Display (trace) instruction.
-      // TODO BUG, console interrupt here is not acked.
-      console_trace_instruction();
-      // TODO handle this in console.c
-      // During trace instruction the server pops out to console mode,
-      // restart it.
-      send_cmd(pts, run_buf, 1);
-      break;
-    }
-  }
-#endif
-}
-
-
-short buf2short(unsigned char *b, int i)
-{
-  return (b[i] << 8) | (b[i+1] & 0xFF);
-}
-
-
-void send_short(short val)
-{
-  unsigned char buf[2] = { val >> 8, val & 0xFF };
-#ifdef SERVER_BUILD
-  UNUSED(buf)
-#endif
-#ifdef PTY_CLI
-  send_cmd(pts, buf, 2);
-#endif
-#ifdef PTY_SRV
-  send_cmd(ptm, buf, 2);
-#endif
-}
-
-
-void ack_console()
-{
-#ifdef PTY_SRV
-  unsigned char buf[1] = { 'I' };
-  send_cmd(ptm, buf, 1);
-  while(1) {
-    // system interrupted. await acknowledge
-    unsigned char *rbuf;
-    if( recv_cmd(ptm, &rbuf) > 0 && rbuf[0] == 'C'){
-      break;
-    }
-  }
-#endif
-}
-
-
-void machine_srv()
-{
-#ifdef PTY_SRV
-  machine_setup(NULL);
-  while(1){
-    // First start in CONSOLE mode
-    unsigned char *buf;
-    if( recv_cmd(ptm, &buf) < 0 ) {
-      ack_console(); // TODO BUG. no console commands expect an ack
-      continue; // Received break and acked it, get next command.
-    }
-    switch(buf[0]) {
-    case 'R': // Start execution
-    case 'S': // Single step
-      {
-        char single = buf[0] == 'S' ? 1 : 0;
-        char state = machine_run(single);
-        switch( state ){
-        case 'I':
-          ack_console(); // Wait for ack.
-          break;
-        default:
-          buf[0] = state;
-          send_cmd(ptm, buf, 1);
-          break;
-        }
-      }
-      break;
-    case 'E': // Examine
-      {
-        short res;
-        switch(buf[1]){
-        case 'R': // Register
-          res = machine_examine_reg(buf[2]);
-          break;
-        case 'M': // Memory
-          res = machine_examine_mem(buf2short(buf,2));
-          break;
-        case 'O': // Operand addr
-          res = machine_operand_addr(buf2short(buf,2), buf[4]);
-          break;
-        case 'D': // Direct addr
-          res = machine_direct_addr(buf2short(buf,2));
-          break;
-        case 'B': // Breakpoint
-          res = machine_examine_bp(buf2short(buf,2));
-          break;
-        case 'T': // Trace
-          res = machine_examine_trace();
-          break;
-        }
-        send_short(res);
-      }
-      break;
-    case 'D': // Deposit
-      switch(buf[1]){
-      case 'R': // Register
-        machine_deposit_reg(buf[2], buf2short(buf,3));
-        break;
-      case 'M': // Memory
-        machine_deposit_mem(buf2short(buf,2), buf2short(buf,4));
-        break;
-      case 'B': // Breakpoint
-        machine_toggle_bp(buf2short(buf, 2));
-        break;
-      case 'T': // Trace
-        machine_toggle_trace();
-        break;
-      case 'P': // Stop at
-        machine_set_stop_at(buf2short(buf,2));
-        break;
-      case 'X': // RX byte stream
-	// TODO serial com support for RX
-	break;
-      }
-      break;
-    case 'Q':
-      close(ptm);
-      exit(EXIT_SUCCESS);
-    default:
-      // TODO send 'U' for unknown command.
-      printf("Unkown coms: %s\n", buf);
-      exit(EXIT_FAILURE);
-    }
-  }
+  backend_run(single);
 #endif
 }
 
@@ -373,11 +65,7 @@ void machine_srv()
 short machine_examine_mem(short addr)
 {
 #ifdef PTY_CLI
-  unsigned char buf[4] = { 'E', 'M', addr >> 8, addr & 0xFF };
-  send_cmd(pts, buf, 4);
-  unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return buf2short(rbuf, 0);
+  return frontend_examine_mem(addr)
 #else
   return mem[addr];
 #endif
@@ -387,8 +75,7 @@ short machine_examine_mem(short addr)
 void machine_deposit_mem(short addr, short val)
 {
 #ifdef PTY_CLI
-  unsigned char buf[6] = { 'D', 'M', addr >> 8, addr & 0xFF, val >> 8, val & 0xFF };
-  send_cmd(pts, buf, 6);
+  frontend_deposit_mem(short addr, short val);
 #else
   mem[addr] = val;
 #endif
@@ -398,11 +85,7 @@ void machine_deposit_mem(short addr, short val)
 short machine_operand_addr(short addr, char examine)
 {
 #ifdef PTY_CLI
-  unsigned char buf[5] = { 'E', 'O', addr >> 8, addr & 0xFF, examine };
-  send_cmd(pts, buf, 5);
-  unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return buf2short(rbuf, 0);
+  return frontend_deposit_mem(addr, examine)
 #else
   return operand_addr(addr, examine);
 #endif
@@ -412,258 +95,39 @@ short machine_operand_addr(short addr, char examine)
 short machine_direct_addr(short addr)
 {
 #ifdef PTY_CLI
-  unsigned char buf[4] = { 'E', 'D', addr >> 8, addr & 0xFF };
-  send_cmd(pts, buf, 4);
-  unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return buf2short(rbuf, 0);
+  frontend_direct_addr(addr);
 #else
   return direct_addr(addr);
 #endif
 }
 
 
-short machine_examine_deposit_reg(register_name_t reg, short val, char dep)
-{
-#ifdef PTY_CLI
-  if( dep ){
-    unsigned char buf[5] = { 'D', 'R', reg, val >> 8, val & 0xFF };
-    send_cmd(pts,buf,5);
-    return 0;
-  } else {
-    unsigned char buf[3] = { 'E', 'R', reg };
-    send_cmd(pts,buf,3);
-    unsigned char *rbuf;
-    recv_cmd(pts,&rbuf);
-    return buf2short(rbuf, 0);
-  }
-
-#else
-
-  short res = 0;
-  
-  switch( reg ){
-  case AC:
-    if( dep ){
-      ac = val;
-    }
-    res = ac;
-    break;
-  case PC:
-    if( dep ){
-      pc = val;
-    }
-    res = pc;
-    break;
-  case MQ:
-    if( dep ){
-      mq = val;
-    }
-    res = mq;
-    break;
-  case DF:
-    if( dep ){
-      df = val;
-    }
-    res = df;
-    break;
-  case IB:
-    if( dep ){
-      ib = val;
-    }
-    res = ib;
-    break;
-  case UB:
-    if( dep ){
-      ub = val;
-    }
-    res = ub;
-    break;
-  case UF:
-    if( dep ){
-      uf = val;
-    }
-    res = uf;
-    break;
-  case SF:
-    if( dep ){
-      sf = val;
-    }
-    res = sf;
-    break;
-  case SR:
-    if( dep ){
-      sr = val;
-    }
-    res = sr;
-    break;
-  case ION_FLAG:
-    if( dep ){
-      ion = val;
-    }
-    res = ion;
-    break;
-  case ION_DELAY:
-    if( dep ){
-      ion_delay = val;
-    }
-    res = ion_delay;
-    break;
-  case INTR_INHIBIT:
-    if( dep ){
-      intr_inhibit = val;
-    }
-    res = intr_inhibit;
-    break;
-  case INTR:
-    if( dep ){
-      intr = val;
-    }
-    res = intr;
-    break;
-  case RTF_DELAY:
-    if( dep ){
-      rtf_delay = val;
-    }
-    res = rtf_delay;
-    break;
-  case TTY_KB_BUF:
-    if( dep ){
-      tty_kb_buf = val;
-    }
-    res = tty_kb_buf;
-    break;
-  case TTY_KB_FLAG:
-    if( dep ){
-      tty_kb_flag = val;
-    }
-    res = tty_kb_flag;
-    break;
-  case TTY_TP_BUF:
-    if( dep ){
-      tty_tp_buf = val;
-    }
-    res = tty_tp_buf;
-    break;
-  case TTY_TP_FLAG:
-    if( dep ){
-      tty_tp_flag = val;
-    }
-    res = tty_tp_flag;
-    break;
-  case TTY_DCR:
-    if( dep ){
-      tty_dcr = val;
-    }
-    res = tty_dcr;
-    break;
-  case RX_IR:
-    if( dep ){
-      rx_ir = val;
-    }
-    res = rx_ir;
-    break;
-  case RX_TR:
-    if( dep ){
-      rx_tr = val;
-    }
-    res = rx_tr;
-    break;
-  case RX_DF:
-    if( dep ){
-      rx_df = val;
-    }
-    res = rx_df;
-    break;
-  case RX_EF:
-    if( dep ){
-      rx_ef = val;
-    }
-    res = rx_ef;
-    break;
-  case RX_ONLINE:
-    if( dep ){
-      rx_online = val;
-    }
-    res = rx_online;
-    break;
-  case RX_BIT_MODE:
-    if( dep ){
-      rx_bit_mode = val;
-    }
-    res = rx_bit_mode;
-    break;
-  case RX_MAINTENANCE_MODE:
-    if( dep ){
-      rx_maintenance_mode = val;
-    }
-    res = rx_maintenance_mode;
-    break;
-  case RX_INTR_ENABLED:
-    if( dep ){
-      rx_intr_enabled = val;
-    }
-    res = rx_intr_enabled;
-    break;
-  case RX_RUN:
-    if( dep ){
-      rx_run = val;
-    }
-    res = rx_run;
-    break;
-  case RX_FUNCTION:
-    if( dep ){
-      current_function = val;
-    }
-    res = current_function;
-    break;
-  case RX_READY_0:
-    if( dep ){
-      rx_ready[0] = val;
-    }
-    res = rx_ready[0];
-    break;
-  case RX_READY_1:
-    if( dep ){
-      rx_ready[1] = val;
-    }
-    res = rx_ready[1];
-    break;
-#ifdef SERVER_BUILD
-  default:
-    printf("OOPS, unknown reg, |%d|", reg);
-    exit(EXIT_FAILURE);
-#endif
-  }
-
-  return res;
-#endif
-}
-
-
 short machine_examine_reg(register_name_t regname)
 {
-  return machine_examine_deposit_reg(regname, 0, 0);
+#ifdef PTY_CLI
+  return frontend_examine_reg(reg);
+#else
+  return backend_examine_deposit_reg(regname, 0, 0);
+#endif
 }
 
 
 void machine_deposit_reg(register_name_t regname, short val)
 {
-  machine_examine_deposit_reg(regname, val, 1);
+#ifdef PTY_CLI
+  frontend_deposit_reg(reg, val);
+#else
+  backend_examine_deposit_reg(regname, val, 1);
+#endif
 }
 
 
 void machine_clear_all_bp()
 {
-#ifdef PTY_BUILD
+#ifdef PTY_CLI
   // TODO Clear all breakpoints
-#endif
-
-#ifdef SERVER_BUILD
-  memset(breakpoints, 0, MEMSIZE);
-#endif
-
-#ifdef SERIAL_BUILD
+#else
+  backend_clear_all_bp();
 #endif
 }
 
@@ -671,13 +135,9 @@ void machine_clear_all_bp()
 short machine_examine_bp(short addr)
 {
 #ifdef PTY_CLI
-  unsigned char buf[4] = { 'E', 'B', addr >> 8, addr & 0xFF };
-  send_cmd(pts, buf, 4);
-  unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return buf2short(rbuf, 0);
+  return frontend_examine_bp();
 #else
-  return breakpoints[addr];
+  return backend_examine_bp();
 #endif
 }
 
@@ -685,10 +145,9 @@ short machine_examine_bp(short addr)
 void machine_toggle_bp(short addr)
 {
 #ifdef PTY_CLI
-  unsigned char buf[4] = { 'D', 'B', addr >> 8, addr & 0xFF };
-  send_cmd(pts, buf, 4);
+  frontend_toggle_bp(addr);
 #else
-  breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
+  backend_toggle_bp(addr);
 #endif
 }
 
@@ -696,13 +155,9 @@ void machine_toggle_bp(short addr)
 short machine_examine_trace()
 {
 #ifdef PTY_CLI
-  unsigned char buf[2] = { 'E', 'T' };
-  send_cmd(pts, buf, 2);
-  unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return rbuf[1]; // Result sent as a short, least significant byte contains boolean.
+  return frontend_examine_trace();
 #else
-  return trace_instruction;
+  return backend_examine_trace();
 #endif
 }
 
@@ -710,10 +165,9 @@ short machine_examine_trace()
 void machine_toggle_trace()
 {
 #ifdef PTY_CLI
-  unsigned char buf[2] = { 'D', 'T' };
-  send_cmd(pts, buf, 2);
+  frontend_toggle_trace();
 #else
-  trace_instruction = !trace_instruction;
+  backend_toggle_trace();
 #endif
 }
 
@@ -721,10 +175,9 @@ void machine_toggle_trace()
 void machine_set_stop_at(short addr)
 {
 #ifdef PTY_CLI
-  unsigned char buf[4] = { 'D', 'P', addr >> 8, addr & 0xFF };
-  send_cmd(pts, buf, 4);
+  frontend_set_stop_at(addr);
 #else
-  internal_stop_at = addr;
+  backend_set_stop_at(addr);
 #endif
 }
 
@@ -732,8 +185,7 @@ void machine_set_stop_at(short addr)
 void machine_quit()
 {
 #ifdef PTY_CLI
-  unsigned char buf[1] = { 'Q' };
-  send_cmd(pts, buf, 1);
+  frontend_quit();
 #endif
 }
 
@@ -741,12 +193,9 @@ void machine_quit()
 void machine_interrupt()
 {
 #ifdef PTY_CLI
-  send_console_break(pts);
-  send_console_break(pts);
-#endif
-
-#ifdef SERVER_BUILD
-  interrupted_by_console = 1;
+  frontend_interrupt();
+#else
+  backend_interrupt();
 #endif
 }
 
@@ -754,21 +203,10 @@ void machine_interrupt()
 void machine_halt()
 {
 #ifdef PTY_CLI
-  send_console_break(pts);
-  send_console_break(pts);
-
-  while(1) {
-    // system interrupted. await acknowledge
-    unsigned char *rbuf;
-    recv_cmd(pts, &rbuf);
-    if(rbuf[0] == 'I'){
-      unsigned char buf[1] =  { 'C' };
-      send_cmd(pts, buf, 1);
-      break;
-    }
-  }
+  frontend_interrupt();
 #endif
 }
+
 
 void machine_mount_rx_image(short drive, char *filename)
 {
