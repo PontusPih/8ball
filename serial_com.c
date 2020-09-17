@@ -31,9 +31,7 @@
 #define ESCAPE      ('~')
 #define CONSOLE     ('.')
 
-#ifdef PTY_SRV
-#define DEBUG_PRIN
-#endif
+// #define DEBUG_PRINT
 
 // "blocking" write of single byte
 static void write_byte(int fd, char byte)
@@ -171,6 +169,9 @@ int recv_cmd(int fd, unsigned char **out_buf)
     case END_FRAME:
       if( FRAME ){
         *out_buf = buf;
+#ifdef DEBUG_PRINT
+	printf("\n");
+#endif
         return i; // Frame successfully read. Set output pointer,
                   // return content length.
       }

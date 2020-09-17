@@ -1,3 +1,13 @@
+/*
+  Copyright (c) 2019 Pontus Pihlgren <pontus.pihlgren@gmail.com>
+  All rights reserved.
+
+  This source code is licensed under the BSD-style license found in the
+  LICENSE file in the root directory of this source tree.
+*/
+
+#ifdef PTY_CLI
+
 #include "console.h"
 #define _XOPEN_SOURCE 600
 #include <stdlib.h>
@@ -8,7 +18,10 @@
 #include <termios.h>
 int pts = -1; // PTY slave handle
 
-char frontend_setup(char *pty_name)
+#include "machine.h"
+#include "serial_com.h"
+
+void frontend_setup(char *pty_name)
 {
   if( pty_name == NULL ){
     printf("Please give a PTY name\n");
@@ -29,6 +42,7 @@ char frontend_setup(char *pty_name)
   tcsetattr(pts, TCSANOW, &cons_new_settings);
 }
 
+
 char frontend_run(char single)
 {
   unsigned char run_buf[1] = { single ? 'S' : 'R' };
@@ -40,6 +54,7 @@ char frontend_run(char single)
     switch(buf[0]) {
     case 'I': // Interrupted
       send_cmd(pts, (unsigned char*)"C",1);
+      __attribute__ ((fallthrough));
     case 'H': // CPU has halted
     case 'B': // Breakpoint hit
     case 'S': // Single step done
@@ -98,7 +113,7 @@ void send_short(char a, char b, short x)
 
 void send_short_short(char a, char b, short x, short y)
 {
-  unsigned char buf[6] = { a, b, x >> 8, x & 0xFF, y >> 8, x & 0xFF };
+  unsigned char buf[6] = { a, b, x >> 8, x & 0xFF, y >> 8, y & 0xFF };
   send_cmd(pts, buf, 6);
 }
 
@@ -132,8 +147,9 @@ short frontend_examine_mem(short addr)
 }
 
 
-short frontend_deposit_mem(short addr, short val)
+void frontend_deposit_mem(short addr, short val)
 {
+  //printf("Send: %o, %o\n", addr, val);
   send_short_short('D','M', addr, val);
 }
 
@@ -206,15 +222,9 @@ void frontend_quit()
 
 void frontend_interrupt()
 {
-  send_console_break();
-  send_console_break();
-}
-
-
-void machine_halt()
-{
-  frontend_interrupt();
-
+  send_console_break(pts);
+  send_console_break(pts);
+  // TODO, keep sending breaks?
   while(1) {
     // system interrupted. await acknowledge
     unsigned char *rbuf;
@@ -226,3 +236,5 @@ void machine_halt()
     }
   }
 }
+
+#endif

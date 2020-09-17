@@ -8,7 +8,7 @@
 
 #include "tty.h"
 #include "cpu.h"
-#include "machine.h"
+#include "backend.h"
 
 // TTY registers
 short tty_kb_buf = 0;
@@ -38,7 +38,7 @@ char tty_process(){
   // If keyboard flag is not set, try to read one char.
   if( !tty_kb_flag ) {
     char input, res;
-    res = read_tty_byte(&input);
+    res = backend_read_tty_byte(&input);
     if( res == 1 ) {
       tty_kb_buf = input;
       tty_kb_flag = 1;
@@ -54,7 +54,7 @@ char tty_process(){
   // If output teleprinter buffer if requested.
   if( output_pending ){
     output_pending = 0;
-    write_tty_byte(tty_tp_buf);
+    backend_write_tty_byte(tty_tp_buf);
     tty_tp_flag = 1;
     if( tty_dcr & TTY_IE_MASK ){
       cpu_raise_interrupt(TTYO_INTR_FLAG);

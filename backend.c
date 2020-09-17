@@ -1,4 +1,4 @@
-#ifdef PTY_SRV
+#ifdef PTY_CLI
 #define _XOPEN_SOURCE 700
 #include <fcntl.h>
 
@@ -8,12 +8,21 @@
 #include <string.h>
 
 int ptm = -1; // PTY master handle
+#else
+#include "console.h"
+#endif
+
+#include "cpu.h"
+#include "tty.h"
+#include "rx8.h"
+#include "serial_com.h"
+#include "machine.h"
+#include "backend.h"
+
 int tty_skip_count = 0;
 int interrupted_by_console = 0;
 char trace_instruction = 0;
 short internal_stop_at = -1;
-#endif
-
 
 void backend_setup()
 {
@@ -21,7 +30,7 @@ void backend_setup()
   tty_reset();
   rx8e_reset();
 
-#ifdef PTY_SRV
+#ifdef PTY_CLI
   if( (ptm = posix_openpt(O_RDWR|O_NOCTTY)) == -1){
     printf("Unable to open PTMX\n");
     exit(EXIT_FAILURE);
@@ -43,10 +52,20 @@ void backend_setup()
 #endif
 }
 
+
+int backend_interrupted()
+{
+#ifdef PTY_CLI
+  return recv_console_break(ptm);
+#else
+  return interrupted_by_console;
+#endif
+}
+
 char backend_run(char single)
 {
   while(1){
-    if( recv_console_break(ptm) || interrupted_by_console){
+    if( backend_interrupted() ){
       return 'I';
     }
     
@@ -89,6 +108,8 @@ char backend_run(char single)
 }
 
 
+#ifdef PTY_CLI
+
 void ack_console()
 {
   unsigned char buf[1] = { 'I' };
@@ -103,8 +124,23 @@ void ack_console()
 }
 
 
-void backend_main()
+short buf2short(unsigned char *b, int i)
 {
+  return (b[i] << 8) | (b[i+1] & 0xFF);
+}
+
+
+void send_short(short x)
+{
+  unsigned char buf[2] = { x >> 8, x & 0xFF };
+  send_cmd(ptm, buf, 2);
+}
+
+
+int main(int argc, char **argv)
+{
+  //  UNUSED(argc);
+  //  UNUSED(argv);
   backend_setup(NULL);
   while(1){
     // First start in CONSOLE mode
@@ -118,7 +154,7 @@ void backend_main()
     case 'S': // Single step
       {
         char single = buf[0] == 'S' ? 1 : 0;
-        char state = machine_run(single);
+        char state = backend_run(single);
         switch( state ){
         case 'I':
           ack_console(); // Wait for ack.
@@ -135,22 +171,22 @@ void backend_main()
         short res;
         switch(buf[1]){
         case 'R': // Register
-          res = machine_examine_reg(buf[2]);
+          res = backend_examine_deposit_reg(buf[2], 0, 0);
           break;
         case 'M': // Memory
-          res = machine_examine_mem(buf2short(buf,2));
+          res = mem[buf2short(buf,2)];
           break;
         case 'O': // Operand addr
-          res = machine_operand_addr(buf2short(buf,2), buf[4]);
+          res = operand_addr(buf2short(buf,2), buf[4]);
           break;
         case 'D': // Direct addr
-          res = machine_direct_addr(buf2short(buf,2));
+          res = direct_addr(buf2short(buf,2));
           break;
         case 'B': // Breakpoint
-          res = machine_examine_bp(buf2short(buf,2));
+          res = backend_examine_bp(buf2short(buf,2));
           break;
         case 'T': // Trace
-          res = machine_examine_trace();
+          res = backend_examine_trace();
           break;
         }
         send_short(res);
@@ -159,19 +195,20 @@ void backend_main()
     case 'D': // Deposit
       switch(buf[1]){
       case 'R': // Register
-        machine_deposit_reg(buf[2], buf2short(buf,3));
+	backend_examine_deposit_reg(buf[2], buf2short(buf,3), 1);
         break;
       case 'M': // Memory
-        machine_deposit_mem(buf2short(buf,2), buf2short(buf,4));
+	//printf("%o = %o\n", buf2short(buf,2) ,  buf2short(buf,4));
+        mem[buf2short(buf,2)] = buf2short(buf,4);
         break;
       case 'B': // Breakpoint
-        machine_toggle_bp(buf2short(buf, 2));
+        backend_toggle_bp(buf2short(buf, 2));
         break;
       case 'T': // Trace
-        machine_toggle_trace();
+        backend_toggle_trace();
         break;
       case 'P': // Stop at
-        machine_set_stop_at(buf2short(buf,2));
+        backend_set_stop_at(buf2short(buf,2));
         break;
       case 'X': // RX byte stream
 	// TODO serial com support for RX
@@ -188,7 +225,7 @@ void backend_main()
     }
   }
 }
-
+#endif
 
 short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
 {
@@ -381,7 +418,7 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
     }
     res = rx_ready[1];
     break;
-#ifdef SERVER_BUILD
+#ifdef PTY_CLI
   default:
     printf("OOPS, unknown reg, |%d|", reg);
     exit(EXIT_FAILURE);
@@ -394,17 +431,19 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
 
 void backend_clear_all_bp()
 {
-  memset(breakpoints, 0, MEMSIZE);
+  for(int i = 0; i<= MEMSIZE; i++){
+    breakpoints[i] = 0;
+  }
 }
 
 
-short backend_examine_bp()
+short backend_examine_bp(short addr)
 {
   return breakpoints[addr];
 }
 
 
-short backend_toggle_bp(short addr)
+void backend_toggle_bp(short addr)
 {
   breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
 }
@@ -431,4 +470,33 @@ void backend_set_stop_at(short addr)
 void backend_interrupt()
 {
   interrupted_by_console = 1;
+}
+
+
+char backend_read_tty_byte(char *output)
+{
+#ifdef PTY_CLI
+  unsigned char buf[2] = { 'T', 'R' };
+  send_cmd(ptm, buf,2); // TTY wants to Read
+  unsigned char *rbuf;
+  if(recv_cmd(ptm, &rbuf) > 0 ){
+    *output = rbuf[1];
+    return rbuf[0];
+  } else {
+    return -1;
+  }
+#else
+  return console_read_tty_byte(output);
+#endif
+}
+
+
+void backend_write_tty_byte(char output)
+{
+#ifdef PTY_CLI
+  unsigned char buf[3] = { 'T', 'W', output };
+  send_cmd(ptm, buf,3); // TTY wants to Write
+#else
+  console_write_tty_byte(output);
+#endif
 }

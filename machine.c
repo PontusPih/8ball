@@ -11,6 +11,13 @@
 #include "rx8.h"
 #include "machine.h"
 
+#ifdef PTY_CLI
+#include "frontend.h"
+#else
+#include "backend.h"
+#include <stdio.h> // for RX file read
+#endif
+
 #define UNUSED(x) (void)(x);
 
 void machine_setup(char *pty_name)
@@ -24,40 +31,12 @@ void machine_setup(char *pty_name)
 }
 
 
-char read_tty_byte(char *output)
-{
-#ifdef PTY_SRV
-  unsigned char buf[2] = { 'T', 'R' };
-  send_cmd(ptm, buf,2); // TTY wants to Read
-  unsigned char *rbuf;
-  if(recv_cmd(ptm, &rbuf) > 0 ){
-    *output = rbuf[1];
-    return rbuf[0];
-  } else {
-    return -1;
-  }
-#else
-  return console_read_tty_byte(output);
-#endif
-}
-
-
-void write_tty_byte(char output)
-{
-#ifdef PTY_SRV
-  unsigned char buf[3] = { 'T', 'W', output };
-  send_cmd(ptm, buf,3); // TTY wants to Write
-#else
-  console_write_tty_byte(output);
-#endif
-}
-
 char machine_run(char single)
 {
 #ifdef PTY_CLI
-  frontend_run(single);
+  return frontend_run(single);
 #else
-  backend_run(single);
+  return backend_run(single);
 #endif
 }
 
@@ -65,7 +44,7 @@ char machine_run(char single)
 short machine_examine_mem(short addr)
 {
 #ifdef PTY_CLI
-  return frontend_examine_mem(addr)
+  return frontend_examine_mem(addr);
 #else
   return mem[addr];
 #endif
@@ -75,7 +54,7 @@ short machine_examine_mem(short addr)
 void machine_deposit_mem(short addr, short val)
 {
 #ifdef PTY_CLI
-  frontend_deposit_mem(short addr, short val);
+  frontend_deposit_mem(addr, val);
 #else
   mem[addr] = val;
 #endif
@@ -85,7 +64,7 @@ void machine_deposit_mem(short addr, short val)
 short machine_operand_addr(short addr, char examine)
 {
 #ifdef PTY_CLI
-  return frontend_deposit_mem(addr, examine)
+  return frontend_operand_addr(addr, examine);
 #else
   return operand_addr(addr, examine);
 #endif
@@ -95,7 +74,7 @@ short machine_operand_addr(short addr, char examine)
 short machine_direct_addr(short addr)
 {
 #ifdef PTY_CLI
-  frontend_direct_addr(addr);
+  return frontend_direct_addr(addr);
 #else
   return direct_addr(addr);
 #endif
@@ -105,7 +84,7 @@ short machine_direct_addr(short addr)
 short machine_examine_reg(register_name_t regname)
 {
 #ifdef PTY_CLI
-  return frontend_examine_reg(reg);
+  return frontend_examine_reg(regname);
 #else
   return backend_examine_deposit_reg(regname, 0, 0);
 #endif
@@ -115,7 +94,7 @@ short machine_examine_reg(register_name_t regname)
 void machine_deposit_reg(register_name_t regname, short val)
 {
 #ifdef PTY_CLI
-  frontend_deposit_reg(reg, val);
+  frontend_deposit_reg(regname, val);
 #else
   backend_examine_deposit_reg(regname, val, 1);
 #endif
@@ -135,9 +114,9 @@ void machine_clear_all_bp()
 short machine_examine_bp(short addr)
 {
 #ifdef PTY_CLI
-  return frontend_examine_bp();
+  return frontend_examine_bp(addr);
 #else
-  return backend_examine_bp();
+  return backend_examine_bp(addr);
 #endif
 }
 
@@ -200,17 +179,13 @@ void machine_interrupt()
 }
 
 
-void machine_halt()
-{
-#ifdef PTY_CLI
-  frontend_interrupt();
-#endif
-}
-
-
 void machine_mount_rx_image(short drive, char *filename)
 {
-#ifdef SERVER_BUILD
+#ifdef PTY_CLI
+  UNUSED(drive);
+  UNUSED(filename);
+  // TODO implement serial transfer of RX data
+#else
   FILE *image = fopen(filename, "r");
   char buf[77*26*128] = {0};
   int bytes_left = 77*26*128;

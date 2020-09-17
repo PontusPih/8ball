@@ -14,6 +14,8 @@ while(<FH>) {
     }
 }
 
+sleep(2);
+
 my $exit_val = system("./8con --pty $line " . join(" ", @ARGV));
 $exit_val = $exit_val >> 8;
 #my $exit_val = ${^CHILD_ERROR_NATIVE};

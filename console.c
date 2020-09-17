@@ -847,7 +847,7 @@ void console(void)
 	  break;
         }
 
-        machine_halt();
+        machine_interrupt();
         break;
       case EXAMINE:
 
