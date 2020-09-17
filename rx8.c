@@ -263,7 +263,7 @@ void rx01_process()
 	  words = rx_bit_mode ? 127 : 63;
 	  ptr = 0;
 	  state = 1;
-	  // Fall through to first transfer
+	  __attribute__ ((fallthrough)); // Fall through to first transfer
 	case 1: // Transfer sector data
 	  if( rx_bit_mode ){ // Transfer one byte
 	    rx_ir = sector_buffer[current_drive][127 - words] & B8_MASK;
