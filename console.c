@@ -28,6 +28,7 @@ short stop_at = -1;
 char *pty_name = NULL;
 char *restore_file = NULL;
 char start_running = 0;
+char trace_instruction = 0;
 
 void signal_handler(int signo)
 {
@@ -1129,46 +1130,58 @@ void console(void)
           break;
         }
 
-        if( _1st_tok == STEP ){
-          // TODO figure out how print useful information.
-          // After execution print instruction at new PC. As well as
-          // current content of PC.
-          print_regs();
-          printf("\t\t");
-          print_instruction(machine_examine_reg(PC));
-        }
-
         in_console = 0;
-        char state = machine_run( _1st_tok == STEP ? 1 : 0 );
-        switch(state) {
-        case 'B':
-          printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
-          // TODO print_instuction
-          break;
-        case 'I':
-        case 'H':
-          printf(" >>> CPU HALTED <<<\n");
-          print_regs();
-          printf("\n");
-          // TODO print_instruction
-          if( exit_on_HLT ){
-            exit(EXIT_FAILURE);
-          }
-          break;
-        case 'P':
-          printf("\n >>> STOP AT <<<\n");
-          print_regs();
-          printf("\n");
-          // TODO print_instruction
-          exit(EXIT_SUCCESS);
-          break;
-        case 'S':
-          // TODO!!! print regs here? and instruction of next PC
-          break;
-        default:
-          printf(" >>> Unknown machine state <<<\n");
-          break;
-        }
+	while( ! in_console ){
+	  char trace_or_step = 0;
+	  if( _1st_tok == STEP || trace_instruction ){
+	    trace_or_step = 1;
+	    if( _1st_tok == STEP ){
+	      print_regs();
+	      printf("\t\t");
+	    }
+	    console_trace_instruction();
+	  }
+	  char state = machine_run( trace_or_step );
+	  switch(state) {
+	  case 'B':
+	    printf(" >>> BREAKPOINT HIT at %o <<<\n", machine_examine_reg(PC));
+	    in_console = 1;
+	    // TODO print_instuction
+	    break;
+	  case 'I':
+	  case 'H':
+	    printf(" >>> CPU HALTED <<<\n");
+	    print_regs();
+	    printf("\n");
+	    // TODO print_instruction
+	    if( exit_on_HLT ){
+	      exit(EXIT_FAILURE);
+	    }
+	    in_console = 1;
+	    break;
+	  case 'P':
+	    printf("\n >>> STOP AT <<<\n");
+	    print_regs();
+	    printf("\n");
+	    // TODO print_instruction
+	    exit(EXIT_SUCCESS);
+	    break;
+	  case 'S':
+	    if( _1st_tok == STEP ){
+	      // If we are single stepping, go to console
+	      in_console = 1;
+	    } else {
+	      // Otherwise, we are tracing instructions and should
+	      // continue to do that
+	      in_console = 0;
+	    }
+	    break;
+	  default:
+	    printf(" >>> Unknown machine state <<<\n");
+	    exit(EXIT_FAILURE);
+	    break;
+	  }
+	}
         in_console = 1;
         break;
       case SAVE:
@@ -1219,8 +1232,8 @@ void console(void)
           break;
         }
 
-        machine_toggle_trace();
-        if( machine_examine_trace() ){
+	trace_instruction = !trace_instruction;
+        if( trace_instruction ){
           printf("Instruction trace ON\n");
         } else {
           printf("Instruction trace OFF\n");

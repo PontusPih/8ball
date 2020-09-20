@@ -19,8 +19,6 @@ void frontend_deposit_reg(register_name_t reg, short val);
 short frontend_examine_reg(register_name_t reg);
 short frontend_examine_bp(short addr);
 void frontend_toggle_bp(short addr);
-short frontend_examine_trace();
-void frontend_toggle_trace();
 void frontend_set_stop_at(short addr);
 void frontend_quit();
 void frontend_interrupt();

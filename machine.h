@@ -52,8 +52,6 @@ void machine_deposit_reg(register_name_t regname, short val);
 void machine_clear_all_bp(void);
 short machine_examine_bp(short addr);
 void machine_toggle_bp(short addr);
-short machine_examine_trace();
-void machine_toggle_trace();
 void machine_set_stop_at(short addr);
 void machine_interrupt();
 void machine_quit();

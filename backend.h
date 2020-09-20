@@ -18,8 +18,6 @@ char backend_run(char single);
 void backend_clear_all_bp();
 short backend_examine_bp(short addr);
 void backend_toggle_bp(short addr);
-short backend_examine_trace();
-void backend_toggle_trace();
 void backend_set_stop_at(short addr);
 void backend_interrupt();
 char backend_read_tty_byte(char *output);

@@ -21,7 +21,6 @@ int ptm = -1; // PTY master handle
 
 int tty_skip_count = 0;
 int interrupted_by_console = 0;
-char trace_instruction = 0;
 short internal_stop_at = -1;
 
 void backend_setup()
@@ -66,11 +65,8 @@ char backend_run(char single)
 {
   while(1){
     if( backend_interrupted() ){
+      interrupted_by_console = 0;
       return 'I';
-    }
-    
-    if( trace_instruction ){
-      return 'D';
     }
     
     // This loops calls each emulated device in turn and any call that
@@ -185,9 +181,6 @@ int main(int argc, char **argv)
         case 'B': // Breakpoint
           res = backend_examine_bp(buf2short(buf,2));
           break;
-        case 'T': // Trace
-          res = backend_examine_trace();
-          break;
         }
         send_short(res);
       }
@@ -203,9 +196,6 @@ int main(int argc, char **argv)
         break;
       case 'B': // Breakpoint
         backend_toggle_bp(buf2short(buf, 2));
-        break;
-      case 'T': // Trace
-        backend_toggle_trace();
         break;
       case 'P': // Stop at
         backend_set_stop_at(buf2short(buf,2));
@@ -446,18 +436,6 @@ short backend_examine_bp(short addr)
 void backend_toggle_bp(short addr)
 {
   breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
-}
-
-
-short backend_examine_trace()
-{
-  return trace_instruction;
-}
-
-
-void backend_toggle_trace()
-{
-  trace_instruction = !trace_instruction;
 }
 
 

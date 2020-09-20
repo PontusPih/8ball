@@ -71,14 +71,6 @@ char frontend_run(char single)
         console_write_tty_byte(buf[2]);
       }
       break;
-    case 'D': // Display (trace) instruction.
-      // TODO BUG, console interrupt here is not acked.
-      console_trace_instruction();
-      // TODO handle this in console.c
-      // During trace instruction the server pops out to console mode,
-      // restart it.
-      send_cmd(pts, run_buf, 1);
-      break;
     }
   }
 }
@@ -191,19 +183,6 @@ short frontend_examine_bp(short addr)
 void frontend_toggle_bp(short addr)
 {
   send_short('D', 'B', addr);
-}
-
-
-short frontend_examine_trace()
-{
-  send_command('E', 'T');
-  return receive_short();
-}
-
-
-void frontend_toggle_trace()
-{
-  send_command('D', 'T');
 }
 
 

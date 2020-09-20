@@ -131,26 +131,6 @@ void machine_toggle_bp(short addr)
 }
 
 
-short machine_examine_trace()
-{
-#ifdef PTY_CLI
-  return frontend_examine_trace();
-#else
-  return backend_examine_trace();
-#endif
-}
-
-
-void machine_toggle_trace()
-{
-#ifdef PTY_CLI
-  frontend_toggle_trace();
-#else
-  backend_toggle_trace();
-#endif
-}
-
-
 void machine_set_stop_at(short addr)
 {
 #ifdef PTY_CLI
