@@ -198,12 +198,14 @@ void rx01_process()
     return;
   }
   if( rx_run && ! rx_df && current_function >= 0){
-    extern char trace_instruction;
+    // extern char trace_instruction;
     static char delay = RX_DELAY;
 
+    /*
     if( trace_instruction && (delay == RX_DELAY || delay == 0) ){
       printf("Func %o delay=%o ir=%o bit_mode=%o maint=%o drv=%o RXES=%o RXER=%o RXTA=%o RXSA=%o\n", current_function, delay, rx_ir, rx_bit_mode, rx_maintenance_mode, current_drive, RXES[current_drive], RXER[current_drive], RXTA[current_drive], RXSA[current_drive]);
     }
+    */
 
     rx_run = 0; // Stop the RX01 until more data is available from CPU
                 // The delayed functions will set rx_run = 1 until

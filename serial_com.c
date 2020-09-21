@@ -36,10 +36,6 @@
 // "blocking" write of single byte
 static void write_byte(int fd, char byte)
 {
-  if( byte == CONSOLE ){
-    byte++;
-    byte--;
-  }
   ssize_t rlen = write(fd, &byte, 1);
 
   if( rlen < 1 ){
@@ -92,7 +88,7 @@ void send_cmd(int fd, unsigned char *cmd, int len)
 void send_console_break(int fd)
 {
   write_byte(fd, CONSOLE);
-  printf(" BREAK \n");
+  printf(" BREAK: %s \n", PTY_CLI);
 }
 
 

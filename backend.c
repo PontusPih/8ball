@@ -106,20 +106,6 @@ char backend_run(char single)
 
 #ifdef PTY_CLI
 
-void ack_console()
-{
-  unsigned char buf[1] = { 'I' };
-  send_cmd(ptm, buf, 1);
-  while(1) {
-    // system interrupted. await acknowledge
-    unsigned char *rbuf;
-    if( recv_cmd(ptm, &rbuf) > 0 && rbuf[0] == 'C'){
-      break;
-    }
-  }
-}
-
-
 short buf2short(unsigned char *b, int i)
 {
   return (b[i] << 8) | (b[i+1] & 0xFF);
@@ -128,36 +114,39 @@ short buf2short(unsigned char *b, int i)
 
 void send_short(short x)
 {
-  unsigned char buf[2] = { x >> 8, x & 0xFF };
-  send_cmd(ptm, buf, 2);
+  unsigned char buf[3] = { 'V', x >> 8, x & 0xFF };
+  send_cmd(ptm, buf, 3);
 }
 
 
-int main(int argc, char **argv)
+int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 {
-  //  UNUSED(argc);
-  //  UNUSED(argv);
   backend_setup(NULL);
   while(1){
     // First start in CONSOLE mode
     unsigned char *buf;
+    printf("In console, waiting command\n");
     if( recv_cmd(ptm, &buf) < 0 ) {
-      ack_console(); // TODO BUG. no console commands expect an ack
+      send_console_break(ptm);
       continue; // Received break and acked it, get next command.
     }
     switch(buf[0]) {
     case 'R': // Start execution
+      printf("Running CPU\n");
+      __attribute__ ((fallthrough));
     case 'S': // Single step
       {
         char single = buf[0] == 'S' ? 1 : 0;
         char state = backend_run(single);
+	unsigned char sbuf[1] = {0};
         switch( state ){
         case 'I':
-          ack_console(); // Wait for ack.
+	  printf("Got interrupt, break\n");
+	  send_console_break(ptm);
           break;
         default:
-          buf[0] = state;
-          send_cmd(ptm, buf, 1);
+          sbuf[0] = state;
+          send_cmd(ptm, sbuf, 1);
           break;
         }
       }
@@ -208,9 +197,12 @@ int main(int argc, char **argv)
     case 'Q':
       close(ptm);
       exit(EXIT_SUCCESS);
+    case 'V':
+      // Received value for TTY, do nothing
+      break;
     default:
       // TODO send 'U' for unknown command.
-      printf("Unkown coms: %s\n", buf);
+      printf("Unkown coms: %x\n", buf[0]);
       exit(EXIT_FAILURE);
     }
   }

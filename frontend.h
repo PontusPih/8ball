@@ -9,7 +9,7 @@
 #ifndef _FRONTEND_H_
 #define _FRONTEND_H_
 
-char frontend_setup(char *pty_name);
+void frontend_setup(char *pty_name);
 char frontend_run(char single);
 short frontend_examine_mem(short addr);
 void frontend_deposit_mem(short addr, short val);
@@ -21,6 +21,6 @@ short frontend_examine_bp(short addr);
 void frontend_toggle_bp(short addr);
 void frontend_set_stop_at(short addr);
 void frontend_quit();
-void frontend_interrupt();
+void frontend_interrupt(char wait);
 
 #endif // _FRONTEND_H_

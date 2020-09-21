@@ -38,7 +38,7 @@ void signal_handler(int signo)
     if( ! in_console ) {
       printf("CPU running, attempting to interrupt\n");
       //      in_console = 0; TODO probably not needed
-      machine_interrupt();
+      machine_interrupt(0);
     }
   }
 }
@@ -848,7 +848,7 @@ void console(void)
 	  break;
         }
 
-        machine_interrupt();
+        machine_interrupt(1);
         break;
       case EXAMINE:
 

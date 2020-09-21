@@ -149,10 +149,10 @@ void machine_quit()
 }
 
 
-void machine_interrupt()
+void machine_interrupt(char wait)
 {
 #ifdef PTY_CLI
-  frontend_interrupt();
+  frontend_interrupt(wait);
 #else
   backend_interrupt();
 #endif

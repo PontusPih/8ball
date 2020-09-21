@@ -53,7 +53,7 @@ void machine_clear_all_bp(void);
 short machine_examine_bp(short addr);
 void machine_toggle_bp(short addr);
 void machine_set_stop_at(short addr);
-void machine_interrupt();
+void machine_interrupt(char wait);
 void machine_quit();
 void machine_srv();
 

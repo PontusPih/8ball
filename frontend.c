@@ -20,6 +20,7 @@ int pts = -1; // PTY slave handle
 
 #include "machine.h"
 #include "serial_com.h"
+#include "frontend.h"
 
 void frontend_setup(char *pty_name)
 {
@@ -40,6 +41,8 @@ void frontend_setup(char *pty_name)
   cons_new_settings = cons_old_settings;
   cfmakeraw(&cons_new_settings);
   tcsetattr(pts, TCSANOW, &cons_new_settings);
+
+  frontend_interrupt(1); // Ensure we are in console mode
 }
 
 
@@ -50,11 +53,13 @@ char frontend_run(char single)
 
   while(1) {
     unsigned char *buf;
-    recv_cmd(pts, &buf);
+    if( recv_cmd(pts, &buf) == -1 ) {
+      // backend acknowledged console mode.
+      printf("Backend wants console mode\n");
+      return 'I';
+    }
     switch(buf[0]) {
     case 'I': // Interrupted
-      send_cmd(pts, (unsigned char*)"C",1);
-      __attribute__ ((fallthrough));
     case 'H': // CPU has halted
     case 'B': // Breakpoint hit
     case 'S': // Single step done
@@ -65,8 +70,8 @@ char frontend_run(char single)
       if( buf[1] == 'R' ){
         char output;
         char res = console_read_tty_byte(&output);
-        unsigned char buf[2] = { res, output };
-        send_cmd(pts, buf, 2);
+        unsigned char buf[3] = { 'V', res, output };
+        send_cmd(pts, buf, 3);
       } else {
         console_write_tty_byte(buf[2]);
       }
@@ -127,8 +132,21 @@ void send_short_char(char a, char b, short x, char y)
 short receive_short()
 {
   unsigned char *rbuf;
-  recv_cmd(pts, &rbuf);
-  return buf2short(rbuf, 0);
+  if( recv_cmd(pts, &rbuf) == -1 ){
+    printf("OOPS! Backend wants console mode\n");
+    return 07777;
+  }
+  switch(rbuf[0]) {
+  case 'V': // Received short value as expected
+    return buf2short(rbuf, 1);
+    break;
+  default:
+    // Any other result means the backend is not in console mode.
+    printf("OOPS! Backend not in console mode! got %c%c%c\n", rbuf[0], rbuf[1], rbuf[2]);
+    frontend_interrupt(1);
+    break;
+  }
+  return 07777;
 }
 
 
@@ -141,7 +159,6 @@ short frontend_examine_mem(short addr)
 
 void frontend_deposit_mem(short addr, short val)
 {
-  //printf("Send: %o, %o\n", addr, val);
   send_short_short('D','M', addr, val);
 }
 
@@ -199,20 +216,13 @@ void frontend_quit()
 }
 
 
-void frontend_interrupt()
+void frontend_interrupt(char wait)
 {
+  unsigned char *rbuf;
+
   send_console_break(pts);
-  send_console_break(pts);
-  // TODO, keep sending breaks?
-  while(1) {
-    // system interrupted. await acknowledge
-    unsigned char *rbuf;
-    recv_cmd(pts, &rbuf);
-    if(rbuf[0] == 'I'){
-      unsigned char buf[1] =  { 'C' };
-      send_cmd(pts, buf, 1);
-      break;
-    }
+  if( wait ){
+    while( recv_cmd(pts, &rbuf) != -1 ){}
   }
 }
 
