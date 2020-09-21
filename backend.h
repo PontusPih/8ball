@@ -21,6 +21,6 @@ void backend_toggle_bp(short addr);
 void backend_set_stop_at(short addr);
 void backend_interrupt();
 char backend_read_tty_byte(char *output);
-void backend_write_tty_byte(char output);
+char backend_write_tty_byte(char output);
 
 #endif // _BACKEND_H_

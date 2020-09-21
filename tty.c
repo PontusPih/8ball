@@ -34,32 +34,37 @@ void tty_reset(){
 }
 
 char tty_process(){
-  // TTY and console handling:
+  // TTY and console handling
+  char res = 0;
+
   // If keyboard flag is not set, try to read one char.
   if( !tty_kb_flag ) {
-    char input, res;
-    res = backend_read_tty_byte(&input);
-    if( res == 1 ) {
+    char input;
+    if( backend_read_tty_byte(&input) ) {
+      // A char has been received
       tty_kb_buf = input;
       tty_kb_flag = 1;
       if( tty_dcr & TTY_IE_MASK ){
         cpu_raise_interrupt(TTYI_INTR_FLAG);
       }
-    }
-    if( res == -1 ){
-      return -1;
+    } else {
+      res = 1; // Request service
     }
   }
-
+  
   // If output teleprinter buffer if requested.
   if( output_pending ){
-    output_pending = 0;
-    backend_write_tty_byte(tty_tp_buf);
-    tty_tp_flag = 1;
-    if( tty_dcr & TTY_IE_MASK ){
-      cpu_raise_interrupt(TTYO_INTR_FLAG);
+    if( backend_write_tty_byte(tty_tp_buf) ){
+      // tty_tp_buf or earlier char has been written
+      output_pending = 0;
+      tty_tp_flag = 1;
+      if( tty_dcr & TTY_IE_MASK ){
+	cpu_raise_interrupt(TTYO_INTR_FLAG);
+      }
+    } else {
+      res = 1; // Request service
     }
   }
-
-  return 0;
+  
+  return res;
 }

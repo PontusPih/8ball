@@ -20,6 +20,14 @@ int ptm = -1; // PTY master handle
 #include "backend.h"
 
 int tty_skip_count = 0;
+char tty_output_pending = 0;
+char tty_output_sent = 0;
+char tty_output_char = '\0';
+
+char tty_input_wanted = 0;
+char tty_input_received = 0;
+char tty_input_char = '\0';
+
 int interrupted_by_console = 0;
 short internal_stop_at = -1;
 
@@ -78,8 +86,8 @@ char backend_run(char single)
     
     if( single || tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
       tty_skip_count = 0;
-      if( tty_process() == -1 ){
-	return 'I';
+      if( tty_process() ){
+	return 'T';
       }
     }
     
@@ -112,13 +120,6 @@ short buf2short(unsigned char *b, int i)
 }
 
 
-void send_short(short x)
-{
-  unsigned char buf[3] = { 'V', x >> 8, x & 0xFF };
-  send_cmd(ptm, buf, 3);
-}
-
-
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 {
   backend_setup(NULL);
@@ -130,6 +131,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
       send_console_break(ptm);
       continue; // Received break and acked it, get next command.
     }
+    printf("Got command %c\n", buf[0]);
+
     switch(buf[0]) {
     case 'R': // Start execution
       printf("Running CPU\n");
@@ -144,8 +147,22 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 	  printf("Got interrupt, break\n");
 	  send_console_break(ptm);
           break;
+	case 'T':
+	  // TTY wants something
+	  if( tty_output_pending ){
+	    unsigned char buf[3] = { 'T', 'W', tty_output_char };
+	    send_cmd(ptm, buf,3); // TTY wants to Write
+	    tty_output_sent = 1;
+	  } else if( tty_input_wanted ){
+	    unsigned char buf[2] = { 'T', 'R' };
+	    send_cmd(ptm, buf, 2); // TTY wants to Read
+	  }
+	  break;
+	case 'R':
+	  // RX wants something
+	  break;
         default:
-          sbuf[0] = state;
+	  sbuf[0] = state;
           send_cmd(ptm, sbuf, 1);
           break;
         }
@@ -171,7 +188,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
           res = backend_examine_bp(buf2short(buf,2));
           break;
         }
-        send_short(res);
+	unsigned char buf[3] = { 'V', res >> 8, res & 0xFF };
+	send_cmd(ptm, buf, 3);
       }
       break;
     case 'D': // Deposit
@@ -197,8 +215,9 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     case 'Q':
       close(ptm);
       exit(EXIT_SUCCESS);
-    case 'V':
-      // Received value for TTY, do nothing
+    case 'T':
+      tty_input_received = 1;
+      tty_input_char = buf[1];
       break;
     default:
       // TODO send 'U' for unknown command.
@@ -443,30 +462,41 @@ void backend_interrupt()
 }
 
 
-char backend_read_tty_byte(char *output)
+char backend_read_tty_byte(char *input)
 {
 #ifdef PTY_CLI
-  unsigned char buf[2] = { 'T', 'R' };
-  send_cmd(ptm, buf,2); // TTY wants to Read
-  unsigned char *rbuf;
-  if(recv_cmd(ptm, &rbuf) > 0 ){
-    *output = rbuf[1];
-    return rbuf[0];
+  if( tty_input_wanted && tty_input_received ){
+    tty_input_wanted = tty_input_received = 0;
+    *input = tty_input_char;
+    return 1;
   } else {
-    return -1;
+    tty_input_wanted = 1;
+    return 0;
   }
 #else
-  return console_read_tty_byte(output);
+  return console_read_tty_byte(input);
 #endif
 }
 
 
-void backend_write_tty_byte(char output)
+char backend_write_tty_byte(char output)
 {
 #ifdef PTY_CLI
-  unsigned char buf[3] = { 'T', 'W', output };
-  send_cmd(ptm, buf,3); // TTY wants to Write
+  if( tty_output_pending && tty_output_sent ){
+    // There was a request to write, and has been sent to frontend
+    tty_output_pending = tty_output_sent = 0;
+    return 1;
+  } else {
+    // Queue char for sending.
+    tty_output_pending = 1;
+    // Notice that the separate tty_output_sent flag allows the output
+    // char to change should this function be called before output is
+    // sent to the frontend. In practice it is sent immediately
+    tty_output_char = output;
+    return 0;
+  }
 #else
   console_write_tty_byte(output);
+  return 1;
 #endif
 }

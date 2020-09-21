@@ -22,6 +22,8 @@ int pts = -1; // PTY slave handle
 #include "serial_com.h"
 #include "frontend.h"
 
+int in_console_mode = 1;
+
 void frontend_setup(char *pty_name)
 {
   if( pty_name == NULL ){
@@ -46,89 +48,124 @@ void frontend_setup(char *pty_name)
 }
 
 
-char frontend_run(char single)
-{
-  unsigned char run_buf[1] = { single ? 'S' : 'R' };
-  send_cmd(pts, run_buf, 1);
-
-  while(1) {
-    unsigned char *buf;
-    if( recv_cmd(pts, &buf) == -1 ) {
-      // backend acknowledged console mode.
-      printf("Backend wants console mode\n");
-      return 'I';
-    }
-    switch(buf[0]) {
-    case 'I': // Interrupted
-    case 'H': // CPU has halted
-    case 'B': // Breakpoint hit
-    case 'S': // Single step done
-    case 'P': // stop_at hit
-      return buf[0];
-      break;
-    case 'T': // TTY Request
-      if( buf[1] == 'R' ){
-        char output;
-        char res = console_read_tty_byte(&output);
-        unsigned char buf[3] = { 'V', res, output };
-        send_cmd(pts, buf, 3);
-      } else {
-        console_write_tty_byte(buf[2]);
-      }
-      break;
-    }
-  }
-}
-
-
 short buf2short(unsigned char *b, int i)
 {
   return (b[i] << 8) | (b[i+1] & 0xFF);
 }
 
 
-void send_command(char a, char b)
+void frontend_send(unsigned char *buf, int len)
 {
-  unsigned char buf[2] = { a, b };
-  send_cmd(pts, buf, 2);
+  static char NO_ENTER = 0;
+  if( NO_ENTER == 1 ){
+    printf("GAH! Don't call front_end_send_receive twice!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  NO_ENTER = 1;
+
+  send_cmd(pts,buf,len);
+  NO_ENTER = 0;
+}
+
+short frontend_receive()
+{
+  static char NO_ENTER = 0;
+
+  if( NO_ENTER == 1 ){
+    printf("GAH! Don't call front_end_send_receive twice!\n");
+    exit(EXIT_FAILURE);
+  }
+
+  NO_ENTER = 1;
+
+  unsigned char *rbuf;
+  if( recv_cmd(pts, &rbuf) == -1 ) {
+    // backend acknowledged console mode.
+    printf("Backend wants console mode\n");
+    NO_ENTER = 0;
+    return 'I';
+  }
+  printf("Got Reply %c\n",rbuf[0]);
+  switch(rbuf[0]) {
+  case 'I': // Interrupted
+  case 'H': // CPU has halted
+  case 'B': // Breakpoint hit
+  case 'S': // Single step done
+  case 'P': // stop_at hit
+    NO_ENTER = 0;
+    return rbuf[0];
+    break;
+  case 'V':
+    NO_ENTER = 0;
+    return buf2short(rbuf, 1);
+    break;
+  case 'T': // TTY Request
+    if( rbuf[1] == 'R' ){
+      // char output;
+      // char res = console_read_tty_byte(&output);
+      // unsigned char rbuf[3] = { 'V', res, output };
+    } else {
+      // console_write_tty_byte(rbuf[2]);
+    }
+    break;
+  }
+  NO_ENTER = 0;
+  return 0;
+}
+
+
+char frontend_run(char single)
+{
+  unsigned char run_buf[1] = { single ? 'S' : 'R' };
+  in_console_mode = 0;
+
+  while( !in_console_mode ) {
+    frontend_send(run_buf, 1);
+    frontend_receive();
+  }
+
+  // TODO send break ?
+  return 0;
 }
 
 
 void send_char(char a, char b, char x)
 {
   unsigned char buf[3] = { a, b, x };
-  send_cmd(pts,buf,3);
+  frontend_send(buf,3);
 }
 
 
 void send_short(char a, char b, short x)
 {
   unsigned char buf[4] = { a, b, x >> 8, x & 0xFF };
-  send_cmd(pts, buf, 4);
+  frontend_send(buf, 4);
 }
 
 
 void send_short_short(char a, char b, short x, short y)
 {
   unsigned char buf[6] = { a, b, x >> 8, x & 0xFF, y >> 8, y & 0xFF };
-  send_cmd(pts, buf, 6);
+  frontend_send(buf, 6);
 }
 
 
 void send_char_short(char a, char b, char x, short y)
 {
   unsigned char buf[5] = { a, b, x, y >> 8, y & 0xFF };
-  send_cmd(pts,buf,5);
+  frontend_send(buf,5);
 }
 
 
 void send_short_char(char a, char b, short x, char y)
 {
   unsigned char buf[5] = { a, b, x >> 8, x & 0xFF, y };
-  send_cmd(pts,buf,5);
+  frontend_send(buf,5);
 }
 
 
+/*
 short receive_short()
 {
   unsigned char *rbuf;
@@ -148,12 +185,13 @@ short receive_short()
   }
   return 07777;
 }
+*/
 
 
 short frontend_examine_mem(short addr)
 {
   send_short('E', 'M', addr);
-  return receive_short();
+  return frontend_receive();
 }
 
 
@@ -166,14 +204,14 @@ void frontend_deposit_mem(short addr, short val)
 short frontend_operand_addr(short addr, char examine)
 {
   send_short_char('E', 'O', addr, examine);
-  return receive_short();
+  return frontend_receive();
 }
 
 
 short frontend_direct_addr(short addr)
 {
   send_short('E', 'D', addr);
-  return receive_short();
+  return frontend_receive();
 }
 
 
@@ -186,14 +224,14 @@ void frontend_deposit_reg(register_name_t reg, short val)
 short frontend_examine_reg(register_name_t reg)
 {
   send_char('E', 'R', reg);
-  return receive_short();
+  return frontend_receive();
 }
 
 
 short frontend_examine_bp(short addr)
 {
   send_short('E', 'B', addr);
-  return receive_short();
+  return frontend_receive();
 }
 
 
@@ -211,19 +249,25 @@ void frontend_set_stop_at(short addr)
 
 void frontend_quit()
 {
-  unsigned char buf[1] = { 'Q' };
-  send_cmd(pts, buf, 1);
+  /*
+    TODO
+  unsigned char buf[1] = { 'Q', '0' };
+  send_command('Q');
+  return frontend_receive();*/
 }
 
 
 void frontend_interrupt(char wait)
 {
+  in_console_mode = 1;
+  wait++;
+  /*
   unsigned char *rbuf;
 
   send_console_break(pts);
   if( wait ){
     while( recv_cmd(pts, &rbuf) != -1 ){}
   }
+  */
 }
-
 #endif
