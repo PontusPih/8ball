@@ -21,6 +21,6 @@ short frontend_examine_bp(short addr);
 void frontend_toggle_bp(short addr);
 void frontend_set_stop_at(short addr);
 void frontend_quit();
-void frontend_interrupt(char wait);
+void frontend_interrupt();
 
 #endif // _FRONTEND_H_

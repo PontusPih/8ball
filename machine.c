@@ -141,18 +141,10 @@ void machine_set_stop_at(short addr)
 }
 
 
-void machine_quit()
+void machine_interrupt()
 {
 #ifdef PTY_CLI
-  frontend_quit();
-#endif
-}
-
-
-void machine_interrupt(char wait)
-{
-#ifdef PTY_CLI
-  frontend_interrupt(wait);
+  frontend_interrupt();
 #else
   backend_interrupt();
 #endif

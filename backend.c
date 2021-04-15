@@ -84,10 +84,14 @@ char backend_run(char single)
     // Any device that can should be able to resume state if CONSOLE
     // has been recv:d
     
-    if( single || tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
+    if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
+      // Current implementation requires at least one skip_count
+      // otherwise single stepping goes tits up
       tty_skip_count = 0;
       if( tty_process() ){
+#ifdef PTY_CLI
 	return 'T';
+#endif
       }
     }
     

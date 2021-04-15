@@ -99,7 +99,9 @@ char recv_console_break(int fd)
   ssize_t len = 0;
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  len = read(fd, &byte, 1);
+  do {
+    len = read(fd, &byte, 1);
+  } while ( len == 1 && byte != CONSOLE );
   fcntl(fd, F_SETFL, flags);
 
   return len == 1 && byte == CONSOLE;

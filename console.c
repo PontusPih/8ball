@@ -38,7 +38,7 @@ void signal_handler(int signo)
     if( ! in_console ) {
       printf("CPU running, attempting to interrupt\n");
       //      in_console = 0; TODO probably not needed
-      machine_interrupt(0);
+      machine_interrupt();
     }
   }
 }
@@ -848,7 +848,7 @@ void console(void)
 	  break;
         }
 
-        machine_interrupt(1);
+        machine_interrupt();
         break;
       case EXAMINE:
 
@@ -1177,7 +1177,7 @@ void console(void)
 	    }
 	    break;
 	  default:
-	    printf(" >>> Unknown machine state <<<\n");
+	    printf(" >>> Unknown machine state: %c <<<\n", state);
 	    exit(EXIT_FAILURE);
 	    break;
 	  }
@@ -1336,7 +1336,6 @@ void exit_cleanup(void)
 {
   save_state("prev.core");
   tcsetattr(0, TCSANOW, &told);
-  machine_quit();
 }
 
 int save_state(char *filename)
