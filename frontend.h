@@ -10,7 +10,6 @@
 #define _FRONTEND_H_
 
 void frontend_setup(char *pty_name);
-char frontend_run(char single);
 short frontend_examine_mem(short addr);
 void frontend_deposit_mem(short addr, short val);
 short frontend_operand_addr(short addr, char examine);

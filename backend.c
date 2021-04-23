@@ -73,7 +73,9 @@ char backend_run(char single)
 {
   while(1){
     if( backend_interrupted() ){
+#ifdef PTY_CLI
       printf(" BREAK RECEIVED: %s \n", PTY_CLI);
+#endif
       interrupted_by_console = 0;
       return 'I';
     }

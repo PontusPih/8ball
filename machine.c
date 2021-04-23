@@ -40,8 +40,8 @@ char machine_run(char single)
   reply_buf[0] = 'X';
   while( 1 ){
     unsigned char *send_buf = io_queued ? io_buf : run_buf;
-    unsigned int send_len = io_queued ? io_len : 1;
 #ifdef PTY_CLI
+    unsigned int send_len = io_queued ? io_len : 1;
     frontend_dispatch(send_buf, send_len, reply_buf, 1);
 #else
     int reply_length;
