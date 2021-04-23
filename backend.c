@@ -73,6 +73,7 @@ char backend_run(char single)
 {
   while(1){
     if( backend_interrupted() ){
+      printf(" BREAK RECEIVED: %s \n", PTY_CLI);
       interrupted_by_console = 0;
       return 'I';
     }
@@ -89,9 +90,7 @@ char backend_run(char single)
       // otherwise single stepping goes tits up
       tty_skip_count = 0;
       if( tty_process() ){
-#ifdef PTY_CLI
 	return 'T';
-#endif
       }
     }
     
@@ -116,121 +115,109 @@ char backend_run(char single)
 }
 
 
-#ifdef PTY_CLI
-
 short buf2short(unsigned char *b, int i)
 {
   return (b[i] << 8) | (b[i+1] & 0xFF);
 }
 
 
-int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
+void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_length)
 {
-  backend_setup(NULL);
-  while(1){
-    // First start in CONSOLE mode
-    unsigned char *buf;
-    printf("In console, waiting command\n");
-    if( recv_cmd(ptm, &buf) < 0 ) {
-      send_console_break(ptm);
-      continue; // Received break and acked it, get next command.
-    }
-    printf("Got command %c\n", buf[0]);
+  switch(buf[0]) {
+  case 'R': // Start execution
+    // printf("Running CPU\n");
+    __attribute__ ((fallthrough));
+  case 'S': // Single step
+    {
+      char single = buf[0] == 'S' ? 1 : 0;
+      char state = backend_run(single);
 
-    switch(buf[0]) {
-    case 'R': // Start execution
-      printf("Running CPU\n");
-      __attribute__ ((fallthrough));
-    case 'S': // Single step
-      {
-        char single = buf[0] == 'S' ? 1 : 0;
-        char state = backend_run(single);
-	unsigned char sbuf[1] = {0};
-        switch( state ){
-        case 'I':
-	  printf("Got interrupt, break\n");
-	  send_console_break(ptm);
-          break;
-	case 'T':
-	  // TTY wants something
-	  if( tty_output_pending ){
-	    unsigned char buf[3] = { 'T', 'W', tty_output_char };
-	    send_cmd(ptm, buf,3); // TTY wants to Write
-	    tty_output_sent = 1;
-	  } else if( tty_input_wanted ){
-	    unsigned char buf[2] = { 'T', 'R' };
-	    send_cmd(ptm, buf, 2); // TTY wants to Read
-	  }
-	  break;
-	case 'R':
-	  // RX wants something
-	  break;
-        default:
-	  sbuf[0] = state;
-          send_cmd(ptm, sbuf, 1);
-          break;
-        }
-      }
-      break;
-    case 'E': // Examine
-      {
-        short res;
-        switch(buf[1]){
-        case 'R': // Register
-          res = backend_examine_deposit_reg(buf[2], 0, 0);
-          break;
-        case 'M': // Memory
-          res = mem[buf2short(buf,2)];
-          break;
-        case 'O': // Operand addr
-          res = operand_addr(buf2short(buf,2), buf[4]);
-          break;
-        case 'D': // Direct addr
-          res = direct_addr(buf2short(buf,2));
-          break;
-        case 'B': // Breakpoint
-          res = backend_examine_bp(buf2short(buf,2));
-          break;
-        }
-	unsigned char buf[3] = { 'V', res >> 8, res & 0xFF };
-	send_cmd(ptm, buf, 3);
-      }
-      break;
-    case 'D': // Deposit
-      switch(buf[1]){
-      case 'R': // Register
-	backend_examine_deposit_reg(buf[2], buf2short(buf,3), 1);
-        break;
-      case 'M': // Memory
-	//printf("%o = %o\n", buf2short(buf,2) ,  buf2short(buf,4));
-        mem[buf2short(buf,2)] = buf2short(buf,4);
-        break;
-      case 'B': // Breakpoint
-        backend_toggle_bp(buf2short(buf, 2));
-        break;
-      case 'P': // Stop at
-        backend_set_stop_at(buf2short(buf,2));
-        break;
-      case 'X': // RX byte stream
-	// TODO serial com support for RX
+      switch( state ){
+      case 'T':
+	// TTY wants something
+	if( tty_output_pending ){
+	  reply_buf[0] = 'T';
+	  reply_buf[1] = 'W'; // TTY wants to Write
+	  reply_buf[2] = tty_output_char;
+	  *reply_length = 3;
+	  tty_output_sent = 1;
+	} else if( tty_input_wanted ){
+	  reply_buf[0] = 'T';
+	  reply_buf[1] = 'R'; // TTY wants to Read
+	  *reply_length = 2;
+	}
+	break;
+      case 'R':
+	// RX wants something
+	break;
+      default:
+	reply_buf[0] = state;
+	*reply_length = 1;
 	break;
       }
-      break;
-    case 'Q':
-      close(ptm);
-      exit(EXIT_SUCCESS);
-    case 'T':
-      tty_input_received = 1;
-      tty_input_char = buf[1];
-      break;
-    default:
-      // TODO send 'U' for unknown command.
-      printf("Unkown coms: %x\n", buf[0]);
-      exit(EXIT_FAILURE);
     }
+    break;
+  case 'E': // Examine
+    {
+      short res;
+      switch(buf[1]){
+      case 'R': // Register
+	res = backend_examine_deposit_reg(buf[2], 0, 0);
+	break;
+      case 'M': // Memory
+	res = mem[buf2short(buf,2)];
+	break;
+      case 'O': // Operand addr
+	res = operand_addr(buf2short(buf,2), buf[4]);
+	break;
+      case 'D': // Direct addr
+	res = direct_addr(buf2short(buf,2));
+	break;
+      case 'B': // Breakpoint
+	res = backend_examine_bp(buf2short(buf,2));
+	break;
+      }
+      reply_buf[0] = 'V';
+      reply_buf[1] = res >> 8;
+      reply_buf[2] = res & 0xFF;
+      *reply_length = 3;
+    }
+    break;
+  case 'D': // Deposit
+    switch(buf[1]){
+    case 'R': // Register
+      backend_examine_deposit_reg(buf[2], buf2short(buf,3), 1);
+      break;
+    case 'M': // Memory
+      //printf("%o = %o\n", buf2short(buf,2) ,  buf2short(buf,4));
+      mem[buf2short(buf,2)] = buf2short(buf,4);
+      break;
+    case 'B': // Breakpoint
+      backend_toggle_bp(buf2short(buf, 2));
+      break;
+    case 'P': // Stop at
+      backend_set_stop_at(buf2short(buf,2));
+      break;
+    case 'X': // RX byte stream
+      // TODO serial com support for RX
+      break;
+    }
+    reply_buf[0] = 'A'; // ACKnowledge communication
+    *reply_length = 1;
+    break;
+  case 'T':
+    tty_input_received = 1;
+    tty_input_char = buf[1];
+    reply_buf[0] = 'A'; // ACKnowledge communication
+    *reply_length = 1;
+    break;
+  default:
+    reply_buf[0] = 'U';
+    *reply_length = 1;
+    break;
   }
 }
-#endif
+
 
 short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
 {
@@ -468,7 +455,6 @@ void backend_interrupt()
 
 char backend_read_tty_byte(char *input)
 {
-#ifdef PTY_CLI
   if( tty_input_wanted && tty_input_received ){
     tty_input_wanted = tty_input_received = 0;
     *input = tty_input_char;
@@ -477,9 +463,6 @@ char backend_read_tty_byte(char *input)
     tty_input_wanted = 1;
     return 0;
   }
-#else
-  return console_read_tty_byte(input);
-#endif
 }
 
 
@@ -500,7 +483,34 @@ char backend_write_tty_byte(char output)
     return 0;
   }
 #else
-  console_write_tty_byte(output);
+  machine_write_tty_byte(output);
   return 1;
 #endif
 }
+
+
+#ifdef PTY_CLI
+int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
+{
+  backend_setup(NULL);
+  while(1){
+    // First start in CONSOLE mode
+    unsigned char buf[128];
+    if( recv_cmd(ptm, buf) < 0 ) {
+      send_console_break(ptm);
+      continue; // Received break and acked it, get next command.
+    }
+
+    unsigned char reply_buf[3]; // Max length is three so far :)
+    int reply_length = 0;
+    backend_dispatch(buf, reply_buf, &reply_length);
+
+    if( reply_length > 0){
+      send_cmd(ptm, reply_buf, reply_length);
+    } else {
+      printf( "BAD STATE, no reply to console\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+}
+#endif

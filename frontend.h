@@ -20,7 +20,8 @@ short frontend_examine_reg(register_name_t reg);
 short frontend_examine_bp(short addr);
 void frontend_toggle_bp(short addr);
 void frontend_set_stop_at(short addr);
-void frontend_quit();
+void frontend_cleanup();
 void frontend_interrupt();
+void frontend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf, char expect_reply);
 
 #endif // _FRONTEND_H_

@@ -23,4 +23,6 @@ void backend_interrupt();
 char backend_read_tty_byte(char *output);
 char backend_write_tty_byte(char output);
 
+void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_length);
+
 #endif // _BACKEND_H_

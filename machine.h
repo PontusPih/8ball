@@ -56,12 +56,15 @@ void machine_set_stop_at(short addr);
 void machine_interrupt();
 void machine_srv();
 
-char read_tty_byte(char *output);
-void write_tty_byte(char output);
-
 void machine_setup(char *pty_name);
 char machine_run(char single);
 
 void machine_mount_rx_image(short drive, char *filename);
+
+char machine_read_tty_byte(char *output);
+void machine_write_tty_byte(char output);
+char machine_read_from_file();
+void machine_set_tty_file_name(char *tty_file_name);
+char machine_set_read_from_file(char flag);
 
 #endif // _MACHINE_H_

@@ -19,13 +19,17 @@
 #include <unistd.h>
 int pts = -1; // PTY slave handle
 
+#endif
+
 #include "machine.h"
 #include "serial_com.h"
 #include "frontend.h"
+#include "backend.h"
 
 char in_console_mode = 1;
 char interrupt_console_mode = 0;
 
+#ifdef PTY_CLI
 void frontend_connect_or_die()
 {
   for( int i = 0; i < 5; i++ ){
@@ -38,6 +42,15 @@ void frontend_connect_or_die()
 
   printf("Unable to do handshake with backend\n");
   exit(EXIT_FAILURE);
+}
+
+
+void frontend_disconnect()
+{
+  send_console_break(pts);
+  if( recv_console_break(pts) ){
+    return;
+  }
 }
 
 
@@ -65,14 +78,21 @@ void frontend_setup(char *pty_name)
 }
 
 
-short buf2short(unsigned char *b, int i)
+void frontend_cleanup()
+{
+  close(pts);
+}
+#endif
+
+static short buf2short(unsigned char *b, int i)
 {
   return (b[i] << 8) | (b[i+1] & 0xFF);
 }
 
 
-void frontend_send(unsigned char *buf, int len)
+void frontend_send(__attribute__((unused))unsigned char *buf, __attribute__((unused))int len)
 {
+#ifdef PTY_CLI
   static char NO_ENTER = 0;
   if( NO_ENTER == 1 ){
     printf("GAH! Don't call front_end_send_receive twice!\n");
@@ -82,10 +102,14 @@ void frontend_send(unsigned char *buf, int len)
   NO_ENTER = 1;
   send_cmd(pts,buf,len);
   NO_ENTER = 0;
+#endif
 }
 
-short frontend_receive(unsigned char *buf, int len)
+short frontend_dispatch_internal(unsigned char *reply_buf);
+
+short frontend_receive(__attribute__((unused))unsigned char *buf,__attribute__((unused)) int len)
 {
+#ifdef PTY_CLI
   static char NO_ENTER = 0;
 
   if( NO_ENTER == 1 ){
@@ -95,14 +119,14 @@ short frontend_receive(unsigned char *buf, int len)
 
   NO_ENTER = 1;
 
-  unsigned char *rbuf;
-  if( recv_cmd(pts, &rbuf) == -1 ) {
+  unsigned char rbuf[128];
+  if( recv_cmd(pts, rbuf) == -1 ) {
     // backend acknowledged console mode.
     printf("Backend wants console mode\n");
     NO_ENTER = 0;
     return 'I';
   }
-  printf("Got Reply %c\n",rbuf[0]);
+  // printf("Got Reply %c\n",rbuf[0]);
 
   if( in_console_mode ){
     if( rbuf[0] != 'V' ){
@@ -110,38 +134,47 @@ short frontend_receive(unsigned char *buf, int len)
       // Try to reconnect and resend
       frontend_connect_or_die();
       frontend_send(buf, len);
-      recv_cmd(pts, &rbuf);
+      recv_cmd(pts, rbuf);
       if( rbuf[0] != 'V' ){
 	printf("Communcations error\n");
 	exit(EXIT_FAILURE);
       }
     }
-    NO_ENTER = 0;
-    return buf2short(rbuf, 1);
-  } else {
-    switch(rbuf[0]) {
-    case 'I': // Interrupted
-    case 'H': // CPU has halted
-    case 'B': // Breakpoint hit
-    case 'S': // Single step done
-    case 'P': // stop_at hit
-      NO_ENTER = 0;
-      in_console_mode = 1;
-      return rbuf[0];
-      break;
-    case 'T': // TTY Request
-      if( rbuf[1] == 'R' ){
-	// char output;
-	// char res = console_read_tty_byte(&output);
-	// unsigned char rbuf[3] = { 'V', res, output };
-      } else {
-	// console_write_tty_byte(rbuf[2]);
-      }
-      break;
-    }
   }
 
+  short res = frontend_dispatch_internal(rbuf);
   NO_ENTER = 0;
+  return res;
+#else
+  return 0;
+#endif
+}
+
+
+short frontend_dispatch_internal(unsigned char *reply_buf)
+{
+  switch(reply_buf[0]) {
+  case 'V': // Value, for console examine
+    return buf2short(reply_buf, 1);
+    break;
+  case 'I': // Interrupted
+  case 'H': // CPU has halted
+  case 'B': // Breakpoint hit
+  case 'S': // Single step done
+  case 'P': // stop_at hit
+    in_console_mode = 1;
+    return reply_buf[0];
+    break;
+  case 'T': // TTY Request
+    if( reply_buf[1] == 'R' ){
+      // char output;
+      // char res = machine_read_tty_byte(&output);
+      // unsigned char rbuf[3] = { 'V', res, output };*/
+    } else {
+      // console_write_tty_byte(rbuf[2]);
+    }
+    break;
+  }
   return 0;
 }
 
@@ -153,19 +186,40 @@ char frontend_run(char single)
   in_console_mode = 0;
 
   while( 1 ) {
+#ifdef PTY_CLI
     frontend_send(run_buf, 1);
-    res = frontend_receive(run_buf,1);
+    res = 1 ; //frontend_dispatch(run_buf);
+#else
+    unsigned char rbuf[3];
+    int rlen;
+    backend_dispatch(run_buf, rbuf, &rlen);
+    res = frontend_dispatch_internal(rbuf);
+#endif
     if( in_console_mode ){
       return res;
     }
     if( interrupt_console_mode ){
       interrupt_console_mode = 0;
       in_console_mode = 1;
+#ifdef PTY_CLI      
       frontend_connect_or_die();
+#endif
       return 'I';
     }
   }
 }
+
+#ifdef PTY_CLI      
+void frontend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf, char expect_reply)
+{
+  send_cmd(pts, send_buf, send_length);
+  if( expect_reply ){
+    if( recv_cmd(pts, reply_buf) < 0){
+      reply_buf[0] = 'I';
+    }
+  }
+}
+#endif
 
 
 short frontend_examine_mem(short addr)
@@ -243,5 +297,7 @@ void frontend_set_stop_at(short addr)
 void frontend_interrupt()
 {
   interrupt_console_mode = 1;
+  send_console_break(pts);
+  recv_console_break(pts);
 }
-#endif
+

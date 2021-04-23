@@ -132,10 +132,8 @@ static char read_byte(int fd)
 // If any error is detected such as an unexpected special character or
 // byte might be lost we reset the state and wait for a new frame. It
 // is up to the sender to retry or go to console mode.
-int recv_cmd(int fd, unsigned char **out_buf)
+int recv_cmd(int fd, unsigned char *out_buf)
 {
-  static unsigned char buf[128];
-
   int i = 0;
   unsigned char byte;
   enum { WAIT, FRAME, ESCAPED } state = WAIT;
@@ -166,7 +164,6 @@ int recv_cmd(int fd, unsigned char **out_buf)
       return -1;  // Drop to console. No data returned
     case END_FRAME:
       if( FRAME ){
-        *out_buf = buf;
 #ifdef DEBUG_PRINT
 	printf("\n");
 #endif
@@ -201,7 +198,7 @@ int recv_cmd(int fd, unsigned char **out_buf)
     }
 
     if( state == FRAME ) {
-      buf[i++] = byte;
+      out_buf[i++] = byte;
     }
     
   } while(1);

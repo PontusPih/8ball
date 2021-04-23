@@ -29,6 +29,7 @@ char *pty_name = NULL;
 char *restore_file = NULL;
 char start_running = 0;
 char trace_instruction = 0;
+char tty_file[100] = "binloader.rim";
 
 void signal_handler(int signo)
 {
@@ -534,41 +535,6 @@ void print_instruction(short pc)
     }
   }
   printf("\n");
-}
-
-char tty_file[100] = "binloader.rim";
-char tty_read_from_file = 0;
-FILE *tty_fh = NULL;
-
-char console_read_tty_byte(char *output)
-{
-  if( tty_read_from_file ){
-    int byte = fgetc( tty_fh );
-    if( byte == EOF ){
-      printf("Reached end of TTY file, dropping to console. "
-             "Further reads will be from keyboard\n");
-      fclose( tty_fh );
-      tty_read_from_file = 0;
-      return -1;
-    } else {
-      *output = byte;
-      return 1;
-    }
-  } else {
-    unsigned char input;
-    if( read(0, &input, 1) > 0 ){
-      // ISTRIP removes bit eight, but other terminals might not.
-      *output = input & B7_MASK;
-      return 1;
-    } else {
-      return 0;
-    }
-  }
-}
-
-void console_write_tty_byte(char output)
-{
-  write(1, &output, 1);
 }
 
 
@@ -1246,10 +1212,11 @@ void console(void)
         }
 
         if( NULL_TOKEN != _2nd_tok ){
-          if( tty_read_from_file ){
+          if( machine_read_from_file() ){
             printf("Unable to set new file name, tty_file currently open\n");
           } else {
             strncpy(tty_file, _2nd_str, strlen(_2nd_str)+1);
+	    machine_set_tty_file_name(tty_file);
           }
         } else {
           to_few_args();
@@ -1261,17 +1228,14 @@ void console(void)
           break;
         }
 
-        tty_read_from_file = ! tty_read_from_file;
-        if( tty_read_from_file ){
-          tty_fh = fopen(tty_file,"r");
-          if( tty_fh == NULL ){
-            tty_read_from_file = 0;
+        if( ! machine_read_from_file() ){
+          if( ! machine_set_read_from_file(1) ){
             printf("Unable to open: \"%s\". Input from keyboard\n", tty_file);
           } else {
             printf("TTY input from file: \"%s\"\n", tty_file);
           }
         } else {
-          if( fclose(tty_fh) ){
+          if( machine_set_read_from_file(0) ){
             printf("Unable to close tty_file\n");
           }
           printf("TTY input from keyboard\n");

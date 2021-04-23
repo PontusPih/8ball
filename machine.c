@@ -6,17 +6,16 @@
   LICENSE file in the root directory of this source tree.
 */
 
+#include <stdio.h> // for RX and TTY file read
+#include <unistd.h>
+
 #include "cpu.h"
 #include "tty.h"
 #include "rx8.h"
 #include "machine.h"
 
-#ifdef PTY_CLI
 #include "frontend.h"
-#else
 #include "backend.h"
-#include <stdio.h> // for RX file read
-#endif
 
 #define UNUSED(x) (void)(x);
 
@@ -33,11 +32,58 @@ void machine_setup(char *pty_name)
 
 char machine_run(char single)
 {
+  unsigned char run_buf[1] = { single ? 'S' : 'R' };
+  unsigned char io_buf[2];
+  unsigned int io_len = 0;
+  char io_queued = 0;
+  unsigned char reply_buf[128];
+  reply_buf[0] = 'X';
+  while( 1 ){
+    unsigned char *send_buf = io_queued ? io_buf : run_buf;
+    unsigned int send_len = io_queued ? io_len : 1;
 #ifdef PTY_CLI
-  return frontend_run(single);
+    frontend_dispatch(send_buf, send_len, reply_buf, 1);
 #else
-  return backend_run(single);
+    int reply_length;
+    backend_dispatch(send_buf, reply_buf, &reply_length);
 #endif
+    io_queued = io_len = 0;
+    // There is always something in reply_buf here
+    switch(reply_buf[0]){
+    case 'T':
+      switch(reply_buf[1]){
+      case 'R':
+	{
+	  char output;
+	  char res = machine_read_tty_byte(&output);
+	  if( res == -1 ){
+	    return 'I';
+	  }
+	  if( res > 0 ){
+	    io_buf[0] = 'T';
+	    io_buf[1] = output;
+	    io_queued = 1;
+	    io_len = 2;
+	  }
+	}
+	break;
+      case 'W':
+	machine_write_tty_byte(reply_buf[2]);
+	break;
+      default:
+	return 'X';
+	break;
+      }
+      break;
+    case 'A':
+      // Acknowledge I/O, if running, continue
+      break;
+    default:
+      return reply_buf[0];
+      break;
+    }      
+  }
+  return reply_buf[0];
 }
 
 
@@ -151,6 +197,14 @@ void machine_interrupt()
 }
 
 
+void machine_cleanup()
+{
+#ifdef PTY_CLI
+  frontend_cleanup();
+#endif
+}
+
+
 void machine_mount_rx_image(short drive, char *filename)
 {
 #ifdef PTY_CLI
@@ -181,4 +235,72 @@ void machine_mount_rx_image(short drive, char *filename)
   }
   fclose(image);
 #endif
+}
+
+
+static char *tty_file = NULL;
+static char tty_read_from_file = 0;
+static FILE *tty_fh = NULL;
+
+char machine_read_tty_byte(char *output)
+{
+  if( tty_read_from_file ){
+    int byte = fgetc( tty_fh );
+    if( byte == EOF ){
+      printf("Reached end of TTY file, dropping to console. "
+             "Further reads will be from keyboard\n");
+      fclose( tty_fh );
+      tty_read_from_file = 0;
+      return -1;
+    } else {
+      *output = byte;
+      return 1;
+    }
+  } else {
+    unsigned char input;
+    if( read(0, &input, 1) > 0 ){
+      // ISTRIP removes bit eight, but other terminals might not.
+      *output = input & B7_MASK;
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+}
+
+void machine_write_tty_byte(char output)
+{
+  write(1, &output, 1);
+}
+
+char machine_read_from_file()
+{
+  return tty_read_from_file;
+}
+
+void machine_set_tty_file_name(char *tty_file_name)
+{
+  tty_file = tty_file_name;
+}
+
+char machine_set_read_from_file(char flag)
+{
+  tty_read_from_file = flag;
+
+  if( flag ){
+    tty_fh = fopen(tty_file, "r");
+    if( tty_fh == NULL ){
+      tty_read_from_file = 0;
+    }
+  } else {
+    if( tty_fh ){
+      if( fclose(tty_fh) ){
+	tty_read_from_file = 1;
+      } else {
+	tty_read_from_file = 0;
+      }
+    }
+  }
+
+  return tty_read_from_file;
 }
