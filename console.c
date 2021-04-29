@@ -59,6 +59,7 @@ void console_setup(int argc, char **argv)
 {
   parse_options(argc, argv);
   machine_setup(pty_name);
+  machine_set_tty_file_name(tty_file);
   if( stop_at > 0 ){
     machine_set_stop_at(stop_at);
   }
@@ -1115,6 +1116,7 @@ void console(void)
 	    // TODO print_instuction
 	    break;
 	  case 'I':
+	  case 'F': // Interrupted, and coms finished
 	  case 'H':
 	    printf(" >>> CPU HALTED <<<\n");
 	    print_regs();

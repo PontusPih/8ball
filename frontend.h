@@ -21,6 +21,7 @@ void frontend_toggle_bp(short addr);
 void frontend_set_stop_at(short addr);
 void frontend_cleanup();
 void frontend_interrupt();
-void frontend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf, char expect_reply);
+void frontend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf);
+short frontend_send_receive(unsigned char *buf, int len, unsigned char *rbuf);
 
 #endif // _FRONTEND_H_

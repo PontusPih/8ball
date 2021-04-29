@@ -58,6 +58,7 @@ void machine_srv();
 
 void machine_setup(char *pty_name);
 char machine_run(char single);
+void machine_cleanup();
 
 void machine_mount_rx_image(short drive, char *filename);
 

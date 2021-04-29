@@ -7,6 +7,7 @@
 */
 
 #include <stdio.h> // for RX and TTY file read
+#include <stdlib.h> // For exit()
 #include <unistd.h>
 
 #include "cpu.h"
@@ -30,6 +31,63 @@ void machine_setup(char *pty_name)
 }
 
 
+static short buf2short(unsigned char *b, int i)
+{
+  return (b[i] << 8) | (b[i+1] & 0xFF);
+}
+
+
+short machine_dispatch(unsigned char *sbuf, int slen, unsigned char *rbuf)
+{
+#ifdef PTY_CLI
+  return frontend_send_receive(sbuf, slen, rbuf);
+#else
+  UNUSED(slen);
+  int rlen;
+  backend_dispatch(sbuf, rbuf, &rlen);
+  return 0;
+#endif
+}
+
+
+short machine_interact(unsigned char *send_buf, int send_len)
+{
+  short result = 0;
+  unsigned char rbuf[3];
+#ifdef PTY_CLI
+  int recv_res = frontend_send_receive(send_buf, send_len, rbuf);
+
+  if( recv_res < 0 ){
+    rbuf[0] = 'X'; // Ensure buf does not contain 'V' or 'A'
+  }
+  
+  switch( rbuf[0] ){
+  case 'V': // Value for console examine
+  case 'A': // Acknowledge, for console deposit
+    break;
+  default:
+    printf("BAD STATE, backend sent:");
+    if( recv_res < 0 ){
+      printf(" console break\n");
+    } else {
+      printf(" '%c'\n", rbuf[0]);
+    }
+    exit(EXIT_FAILURE);
+    break;
+  }
+#else
+  UNUSED(send_len);
+  int reply_length;
+  backend_dispatch(send_buf, rbuf, &reply_length);
+#endif
+
+  if( rbuf[0] == 'V' ){  // Value, for console examine
+    result = buf2short(rbuf, 1);
+  }
+  
+  return result;
+}
+
 char machine_run(char single)
 {
   unsigned char run_buf[1] = { single ? 'S' : 'R' };
@@ -40,13 +98,14 @@ char machine_run(char single)
   reply_buf[0] = 'X';
   while( 1 ){
     unsigned char *send_buf = io_queued ? io_buf : run_buf;
-#ifdef PTY_CLI
     unsigned int send_len = io_queued ? io_len : 1;
-    frontend_dispatch(send_buf, send_len, reply_buf, 1);
-#else
-    int reply_length;
-    backend_dispatch(send_buf, reply_buf, &reply_length);
-#endif
+
+    if( machine_dispatch(send_buf, send_len, reply_buf) < 0 ){
+      unsigned char fin_buf[1] = { 'F' };
+      send_len = 1;
+      machine_dispatch(fin_buf, send_len, reply_buf);
+    }
+
     io_queued = io_len = 0;
     // There is always something in reply_buf here
     switch(reply_buf[0]){
@@ -81,7 +140,14 @@ char machine_run(char single)
     default:
       return reply_buf[0];
       break;
-    }      
+    }
+
+    if( run_buf[0] == 'R' ){
+      // The first run command is R to signal exit of
+      // console/interrupted mode. Then C is sent during I/O
+      // operations.
+      run_buf[0] = 'C';
+    }
   }
   return reply_buf[0];
 }
@@ -89,61 +155,43 @@ char machine_run(char single)
 
 short machine_examine_mem(short addr)
 {
-#ifdef PTY_CLI
-  return frontend_examine_mem(addr);
-#else
-  return mem[addr];
-#endif
+  unsigned char buf[4] = { 'E', 'M', addr >> 8, addr & 0xFF };
+  return machine_interact(buf, sizeof(buf));
 }
 
 
 void machine_deposit_mem(short addr, short val)
 {
-#ifdef PTY_CLI
-  frontend_deposit_mem(addr, val);
-#else
-  mem[addr] = val;
-#endif
+  unsigned char buf[6] = { 'D', 'M', addr >> 8, addr & 0xFF, val >> 8, val & 0xFF };
+  machine_interact(buf, sizeof(buf));
 }
 
 
 short machine_operand_addr(short addr, char examine)
 {
-#ifdef PTY_CLI
-  return frontend_operand_addr(addr, examine);
-#else
-  return operand_addr(addr, examine);
-#endif
+  unsigned char buf[5] = { 'E', 'O', addr >> 8, addr & 0xFF, examine };
+  return machine_interact(buf, sizeof(buf));
 }
 
 
 short machine_direct_addr(short addr)
 {
-#ifdef PTY_CLI
-  return frontend_direct_addr(addr);
-#else
-  return direct_addr(addr);
-#endif
+  unsigned char buf[4] = { 'E', 'D', addr >> 8, addr & 0xFF };
+  return machine_interact(buf, sizeof(buf));
 }
 
 
 short machine_examine_reg(register_name_t regname)
 {
-#ifdef PTY_CLI
-  return frontend_examine_reg(regname);
-#else
-  return backend_examine_deposit_reg(regname, 0, 0);
-#endif
+  unsigned char buf[3] = {'E', 'R', regname};
+  return machine_interact(buf, sizeof(buf));
 }
 
 
 void machine_deposit_reg(register_name_t regname, short val)
 {
-#ifdef PTY_CLI
-  frontend_deposit_reg(regname, val);
-#else
-  backend_examine_deposit_reg(regname, val, 1);
-#endif
+  unsigned char buf[5] = { 'D', 'R', regname, val >> 8, val & 0xFF };
+  machine_interact(buf, sizeof(buf));
 }
 
 
@@ -159,31 +207,22 @@ void machine_clear_all_bp()
 
 short machine_examine_bp(short addr)
 {
-#ifdef PTY_CLI
-  return frontend_examine_bp(addr);
-#else
-  return backend_examine_bp(addr);
-#endif
+  unsigned char buf[4] = { 'E', 'B', addr >> 8, addr & 0xFF };
+  return machine_interact(buf, sizeof(buf));
 }
 
 
 void machine_toggle_bp(short addr)
 {
-#ifdef PTY_CLI
-  frontend_toggle_bp(addr);
-#else
-  backend_toggle_bp(addr);
-#endif
+  unsigned char buf[4] = { 'D', 'B', addr >> 8, addr & 0xFF };
+  machine_interact(buf, sizeof(buf));
 }
 
 
 void machine_set_stop_at(short addr)
 {
-#ifdef PTY_CLI
-  frontend_set_stop_at(addr);
-#else
-  backend_set_stop_at(addr);
-#endif
+  unsigned char buf[4] = { 'D', 'P', addr >> 8, addr & 0xFF };
+  machine_interact(buf, sizeof(buf));
 }
 
 

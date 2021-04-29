@@ -310,14 +310,14 @@ data from the drive. I had forgotten that I must then pack the bits
 when they are written to the sector buffer in order for the MAINDECS
 to read the back. I fixed that. However, OS/8 would not load.
 
-Update-5-SEP-2020
+Update 5-SEP-2020
 
 Unable to let a problem like this rest I stayed up late again and
 followed the code flow in both SIMH and 8ball. And I could verify that
 8ball could load the top pages in field 0 and 1 correctly but would
 halt much earlier than SIMH. No luck understanding why..
 
-Update-6-SEP-2020
+Update 6-SEP-2020
 
 Ok, progress! I improved the output from code tracing in 8ball and
 carefully followed the execution of OS/8's bootstrap. I could now see
@@ -340,12 +340,147 @@ only 7! Seems like he is right and the RX01 maintenance manual is
 wrong. With this information the loader gets a bit further. However,
 OS/8 would not load!
 
-Update-6-SEP-2020 (Late night addendum)
+Update 6-SEP-2020 (Late night addendum)
 
 Following the boot sequence of OS/8 I could see that it loads the NOOP
 command of the RX01. After that it would just hang waiting for the
 done flag. Apparently the NOOP command is not quite a NO OPeration, it
 raises the done flag when it is done doing nothing. OS8 finally boots!
+
+Update 25-APR-2021
+
+After doing my talk at Update once again, which was well received by
+the way, I decided to work out the kinks in the serial communcations
+layer. Now it is as good as it gets. So while I remember, here is how
+it is meant to work.
+
+At the bottom there is "serial_com.c" which can send "frames" that
+start with '{' and end with '}'. Characters with special meaning
+inside a frame is escaped with '~' (itself a special character). There
+is no checksums, sequence number or size information in a frame. It's
+all very basic.
+
+The special "console" character '.' will terminate transfer of a frame
+and the reported frame size is -1. This enables one side to abort an
+ongoing transfer and reset communications.
+
+The "frontend.c" and "backend.c" code has a simple protocol that is
+sent as frames. The backend should be started first. The frontend
+connects to it by sending one "console" character and the backend
+should reply with one "console" character in return:
+
+                   frontend      backend
+(in console mode)     |           |
+                      |---- . --->|
+                                  | (goes to console mode)
+                      |<--- . ----|
+                      |           
+                      v
+
+Now, both frontend and backend should be in "console" mode where the
+frontend reads input from the user and can issue commands to the
+backend.
+
+It the frontend wants to start the emulator in the backend it sends an
+'R' within a frame. The backend will start running and will not reply.
+
+                   frontend       backend
+(in console mode)     |              
+                      |--- { R } --->|
+                                     | (starts running)
+                                     v
+
+When in running mode:
+
+If the backend needs to do I/O it will send a request for input or
+deliver output to the frontend. Output for the TTY is sent as a frame
+with the letter 'T' (for TTY), 'W' (for write), and a byte 'c' for
+output. The frontend will send 'C' back to let the emulator continue.
+
+                   frontend       backend
+                                     | (running)                       
+                      |<-- { TWc } --| (sends TTY output)
+(performs output)     |		      
+                      |--- { C } --->|
+                                     | (continues running)
+                                     v
+
+The backend will periodically ask the frontend for input from the TTY
+by sending TR. The frontend will reply with 'C' if there is no
+character to read. Otherwise it send 'T' and the character 'c'. Then
+the backend will acknowledge that the character was received and the
+frontend will send 'C' for continue.
+
+                   frontend       backend
+                                     | (running)                       
+                      |<-- { TR } ---| (asks for input)
+(Finds no input)      |		      
+                      |--- { C } --->|
+                                     | (continues running)
+                                     v
+
+                   frontend       backend
+                                     | (running)                       
+                      |<-- { TR } ---| (asks for input)
+(Finds input)         |		      
+                      |--- { Tc } -->|
+		                     |
+                      |<-- { A } ----| (Acknowledges input)
+		      |
+                      |--- { C } --->|		      
+                                     | (continues running)
+                                     v
+
+To abort the running mode the user can press CTRL+C and send a unix
+signal to the frontend process. The signal handler will send a single
+console special byte: '.'
+
+In order for the backend to finish any I/O request there is a bit of
+back and forth to settle in console mode. If the there is no I/O the
+exchange is as follows.
+
+While the backend runs it will periodically check for a console byte
+using nonblocking I/O. It will reply with an 'I', to wake up the
+frontend (which is haning on read()).  The frontend return to console
+mode.
+
+                   frontend       backend          signal handler
+                                       | (running)
+                                       |                | (wakes up by signal)
+                                       | <--- { . } --- | (sends byte, stops)
+                                       |                  (Checks for console byte)
+                      | <-- { I } ---- |
+(in console mode)     |
+    	    	      |
+		      v
+
+If the frontend was interacting with the backend to do I/O. It will be
+more convoluted. First is the case when the frontend sends a '.' just
+as the backend asks for I/O attention.
+
+                   frontend       backend          signal handler
+                                       | (running)
+                                       |                | (wakes up by signal)
+                                       | <--- { . } --- | (sends byte, stops)
+                                       |
+                      | <-- { I/O }--- | (has not read '.', sends I/O req)
+(does I/O)            |
+                      | --> { I/O }--> |
+                                       | (Reads console byte)
+                      | <-- { . } ---- | (Replies with '.')
+(Expects 'A', get '.')|
+                      | --> { F } ---> |
+		                       | (Reads I/O, acks)
+                      | <-- { A } ---- |
+(Gets 'A', sends 'C') |
+                      | --- { C } ---> |
+		                       | (Read F, acks)
+                      | <-- { F } ---- |
+(Go to console mode)  |                | (Reads C, ignores in console mode)
+                      |
+		      |
+		      v
+
 
 [1] http://homepage.cs.uiowa.edu/~jones/pdp8/man/index.html
 [2] http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/pdp8/handbooks/Small_Computer_Handbook_1973.pdf

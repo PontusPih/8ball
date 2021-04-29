@@ -63,20 +63,17 @@ void backend_setup()
 int backend_interrupted()
 {
 #ifdef PTY_CLI
-  return recv_console_break(ptm);
-#else
-  return interrupted_by_console;
+  if( recv_console_break(ptm) ){
+    interrupted_by_console = 1;
+  }
 #endif
+  return interrupted_by_console;
 }
 
 char backend_run(char single)
 {
   while(1){
     if( backend_interrupted() ){
-#ifdef PTY_CLI
-      printf(" BREAK RECEIVED: %s \n", PTY_CLI);
-#endif
-      interrupted_by_console = 0;
       return 'I';
     }
     
@@ -128,6 +125,8 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
   switch(buf[0]) {
   case 'R': // Start execution
     // printf("Running CPU\n");
+    __attribute__ ((fallthrough));
+  case 'C': // Continue running
     __attribute__ ((fallthrough));
   case 'S': // Single step
     {
@@ -211,6 +210,10 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
     tty_input_received = 1;
     tty_input_char = buf[1];
     reply_buf[0] = 'A'; // ACKnowledge communication
+    *reply_length = 1;
+    break;
+  case 'F':
+    reply_buf[0] = 'F';
     *reply_length = 1;
     break;
   default:
@@ -500,7 +503,19 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     unsigned char buf[128];
     if( recv_cmd(ptm, buf) < 0 ) {
       send_console_break(ptm);
-      continue; // Received break and acked it, get next command.
+      interrupted_by_console = 1;
+      continue; // Received break and acked it, get next command
+    }
+
+    if( interrupted_by_console ) {
+      if( buf[0] == 'C' ){
+	continue; // When interrupted, ignore continue commands.
+      }
+      if( buf[0] == 'R' || buf[0] == 'S' ){
+	 // Run or single step command means we are no longer
+	 // interrupted.
+	interrupted_by_console = 0;
+      }
     }
 
     unsigned char reply_buf[3]; // Max length is three so far :)

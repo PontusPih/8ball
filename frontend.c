@@ -38,15 +38,6 @@ void frontend_connect_or_die()
 }
 
 
-void frontend_disconnect()
-{
-  send_console_break(pts);
-  if( recv_console_break(pts) ){
-    return;
-  }
-}
-
-
 void frontend_setup(char *pty_name)
 {
   if( pty_name == NULL ){
@@ -77,129 +68,26 @@ void frontend_cleanup()
 }
 
 
-static short buf2short(unsigned char *b, int i)
-{
-  return (b[i] << 8) | (b[i+1] & 0xFF);
-}
-
-
-short frontend_send_receive(unsigned char *buf, int len)
+short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
 {
   static char NO_ENTER = 0;
-  int result = 0;
-
   if( NO_ENTER == 1 ){
     printf("GAH! Don't call frontend_send_receive twice!\n");
     exit(EXIT_FAILURE);
   }
   NO_ENTER = 1;
 
-  send_cmd(pts,buf,len);
-
-  unsigned char rbuf[128];
-  rbuf[0] = 'X';
-  int recv_res = recv_cmd(pts, rbuf);
-
-  switch( rbuf[0] ){
-  case 'V': // Value, for console examine
-    result = buf2short(rbuf, 1);
-    break;
-  case 'A': // Acknowledge, for console deposit
-    break;
-  default:
-    printf("BAD STATE, backend sent:");
-    if( recv_res < 0 ){
-      printf(" console break\n");
-    } else {
-      printf(" '%c'\n", rbuf[0]);
-    }
-    exit(EXIT_FAILURE);
-    break;
-  }
+  send_cmd(pts,sbuf,slen);
+  short recv_res = recv_cmd(pts, rbuf);
 
   NO_ENTER = 0;
-  return result;
-}
-
-
-void frontend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf, char expect_reply)
-{
-  send_cmd(pts, send_buf, send_length);
-  if( expect_reply ){
-    if( recv_cmd(pts, reply_buf) < 0){
-      reply_buf[0] = 'I';
-    }
-  }
-}
-
-
-short frontend_examine_mem(short addr)
-{
-  unsigned char buf[4] = { 'E', 'M', addr >> 8, addr & 0xFF };
-  return frontend_send_receive(buf, sizeof(buf));
-}
-
-
-void frontend_deposit_mem(short addr, short val)
-{
-  unsigned char buf[6] = { 'D', 'M', addr >> 8, addr & 0xFF, val >> 8, val & 0xFF };
-  frontend_send_receive(buf, sizeof(buf));
-}
-
-
-short frontend_operand_addr(short addr, char examine)
-{
-  unsigned char buf[5] = { 'E', 'O', addr >> 8, addr & 0xFF, examine };
-  return frontend_send_receive(buf, sizeof(buf));
-}
-
-
-short frontend_direct_addr(short addr)
-{
-  unsigned char buf[4] = { 'E', 'D', addr >> 8, addr & 0xFF };
-  return frontend_send_receive(buf, sizeof(buf));
-}
-
-
-void frontend_deposit_reg(register_name_t reg, short val)
-{
-  unsigned char buf[5] = { 'D', 'R', reg, val >> 8, val & 0xFF };
-  frontend_send_receive(buf, sizeof(buf));
-}
-
-
-short frontend_examine_reg(register_name_t reg)
-{
-  unsigned char buf[3] = {'E', 'R', reg};
-  return frontend_send_receive(buf, sizeof(buf));
-}
-
-
-short frontend_examine_bp(short addr)
-{
-  unsigned char buf[4] = { 'E', 'B', addr >> 8, addr & 0xFF };
-  return frontend_send_receive(buf, sizeof(buf));
-}
-
-
-void frontend_toggle_bp(short addr)
-{
-  unsigned char buf[4] = { 'D', 'B', addr >> 8, addr & 0xFF };
-  frontend_send_receive(buf, sizeof(buf));
-}
-
-
-void frontend_set_stop_at(short addr)
-{
-  unsigned char buf[4] = { 'D', 'P', addr >> 8, addr & 0xFF };
-  frontend_send_receive(buf, sizeof(buf));
+  return recv_res;
 }
 
 
 void frontend_interrupt()
 {
   send_console_break(pts);
-  recv_console_break(pts);
 }
 
 #endif
