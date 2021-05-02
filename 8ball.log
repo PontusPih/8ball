@@ -441,15 +441,15 @@ exchange is as follows.
 
 While the backend runs it will periodically check for a console byte
 using nonblocking I/O. It will reply with an 'I', to wake up the
-frontend (which is haning on read()).  The frontend return to console
+frontend (which is hanging on read()). The frontend return to console
 mode.
 
                    frontend       backend          signal handler
                                        | (running)
                                        |                | (wakes up by signal)
                                        | <--- { . } --- | (sends byte, stops)
-                                       |                  (Checks for console byte)
-                      | <-- { I } ---- |
+                                       | (Checks for console byte)
+                      | <-- { I } ---- | (Sends 'I')
 (in console mode)     |
     	    	      |
 		      v
@@ -467,17 +467,29 @@ as the backend asks for I/O attention.
 (does I/O)            |
                       | --> { I/O }--> |
                                        | (Reads console byte)
-                      | <-- { . } ---- | (Replies with '.')
-(Expects 'A', get '.')|
-                      | --> { F } ---> |
-		                       | (Reads I/O, acks)
+(Expects 'A', get '.')| <---  .  ----- | (Replies with '.')
+(Waits for 'A')                        | (Reads I/O, acks)
                       | <-- { A } ---- |
-(Gets 'A', sends 'C') |
-                      | --- { C } ---> |
-		                       | (Read F, acks)
-                      | <-- { F } ---- |
-(Go to console mode)  |                | (Reads C, ignores in console mode)
-                      |
+(Go to console mode)  |
+		      |
+		      v
+
+If the front end has just finished IO:
+
+                   frontend       backend          signal handler
+                                       | (running)
+                                       |
+                      | <-- { I/O }--- | (sends I/O req)
+(does I/O)            |
+                      | --> { I/O }--> |
+                                       | (Reads I/O, acks)
+                      | <-- { A } ---- |
+(Gets expected 'A')   |
+                                                        | (wakes up by signal)
+(Restarts CPU)        | --- { C } ---> | <--- { . } --- | (sends byte, stops)
+                                       | (Reads 'C', will ignore)
+(Reads '.')	      |
+(Go to console mode)  |
 		      |
 		      v
 

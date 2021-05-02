@@ -90,23 +90,31 @@ short machine_interact(unsigned char *send_buf, int send_len)
 
 char machine_run(char single)
 {
+  // State change is RUN -> IO -> CONSOLE
+  // or RUN -> IO -> RUN
+  enum { RUN, IO, CONSOLE } state = RUN;
   unsigned char run_buf[1] = { single ? 'S' : 'R' };
   unsigned char io_buf[2];
   unsigned int io_len = 0;
-  char io_queued = 0;
   unsigned char reply_buf[128];
   reply_buf[0] = 'X';
-  while( 1 ){
-    unsigned char *send_buf = io_queued ? io_buf : run_buf;
-    unsigned int send_len = io_queued ? io_len : 1;
 
-    if( machine_dispatch(send_buf, send_len, reply_buf) < 0 ){
-      unsigned char fin_buf[1] = { 'F' };
-      send_len = 1;
-      machine_dispatch(fin_buf, send_len, reply_buf);
+  while( 1 ){
+    if( state == IO ){
+      if( machine_dispatch(io_buf, io_len, reply_buf) < 0 ){
+	state = CONSOLE;
+	continue;
+      }
+    } else {
+      if( machine_dispatch(run_buf, 1, reply_buf) < 0 ){
+	return 'I';
+      }
     }
 
-    io_queued = io_len = 0;
+    if( run_buf[0] == 'R' ){
+      run_buf[0] = 'C'; // After first R, issue continues
+    }
+
     // There is always something in reply_buf here
     switch(reply_buf[0]){
     case 'T':
@@ -121,8 +129,8 @@ char machine_run(char single)
 	  if( res > 0 ){
 	    io_buf[0] = 'T';
 	    io_buf[1] = output;
-	    io_queued = 1;
 	    io_len = 2;
+	    state = IO;
 	  }
 	}
 	break;
@@ -136,20 +144,17 @@ char machine_run(char single)
       break;
     case 'A':
       // Acknowledge I/O, if running, continue
+      if( state == CONSOLE ){
+	return 'I';
+      } else {
+	state = RUN;
+      }
       break;
     default:
       return reply_buf[0];
       break;
     }
-
-    if( run_buf[0] == 'R' ){
-      // The first run command is R to signal exit of
-      // console/interrupted mode. Then C is sent during I/O
-      // operations.
-      run_buf[0] = 'C';
-    }
   }
-  return reply_buf[0];
 }
 
 

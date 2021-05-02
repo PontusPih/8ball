@@ -212,10 +212,6 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
     reply_buf[0] = 'A'; // ACKnowledge communication
     *reply_length = 1;
     break;
-  case 'F':
-    reply_buf[0] = 'F';
-    *reply_length = 1;
-    break;
   default:
     reply_buf[0] = 'U';
     *reply_length = 1;
