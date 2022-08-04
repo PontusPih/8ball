@@ -129,6 +129,9 @@ static char read_byte(int fd)
 // Recieve one frame. The somewhat convoluted code waits for a
 // "START_FRAME" byte and will remove ESCAPE-bytes in the content.
 
+// TODO consider prohibiting special chars inside frames. Then a lost
+//      escape char is less problematic.
+
 // If any error is detected such as an unexpected special character or
 // byte might be lost we reset the state and wait for a new frame. It
 // is up to the sender to retry or go to console mode.

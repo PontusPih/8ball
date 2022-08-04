@@ -381,7 +381,7 @@ Now, both frontend and backend should be in "console" mode where the
 frontend reads input from the user and can issue commands to the
 backend.
 
-It the frontend wants to start the emulator in the backend it sends an
+If the frontend wants to start the emulator in the backend it sends an
 'R' within a frame. The backend will start running and will not reply.
 
                    frontend       backend
@@ -407,7 +407,7 @@ output. The frontend will send 'C' back to let the emulator continue.
 
 The backend will periodically ask the frontend for input from the TTY
 by sending TR. The frontend will reply with 'C' if there is no
-character to read. Otherwise it send 'T' and the character 'c'. Then
+character to read. Otherwise it sends 'T' and the character 'c'. Then
 the backend will acknowledge that the character was received and the
 frontend will send 'C' for continue.
 
@@ -441,7 +441,7 @@ exchange is as follows.
 
 While the backend runs it will periodically check for a console byte
 using nonblocking I/O. It will reply with an 'I', to wake up the
-frontend (which is hanging on read()). The frontend return to console
+frontend (which is hanging on read()). The frontend returns to console
 mode.
 
                    frontend       backend          signal handler

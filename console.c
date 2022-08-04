@@ -728,7 +728,7 @@ void console(void)
   char *line;
   while(1){
     if( start_running == 1 ){
-      line = malloc(2);
+      line = malloc(2); // malloc():ed since linenoise() value is free():ed
       line[0] = 'r';
       line[1] = '\0';
       start_running = 0;
