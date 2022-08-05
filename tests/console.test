@@ -168,6 +168,7 @@ exit
 >>>
 Breakpoint set at 7760
 Instruction trace ON
+07756  6032 KCC
 07757  6031 KSF
  >>> BREAKPOINT HIT at 7760 <<<
 Instruction trace OFF

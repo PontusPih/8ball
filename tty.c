@@ -25,7 +25,8 @@ void tty_initiate_output()
   output_pending = 1;
 }
 
-void tty_reset(){
+void tty_reset()
+{
   tty_kb_buf = 0;
   tty_kb_flag = 0;
   tty_tp_buf = 0;
