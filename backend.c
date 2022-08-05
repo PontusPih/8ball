@@ -5,14 +5,12 @@
 #include "serial_com.h"
 #include "backend.h"
 
-int tty_skip_count = 0;
-char tty_output_pending = 0;
-char tty_output_sent = 0;
+// TODO simulate slow TTY (update maindec-d0cc to do all loops)
+// Current implementation requires at least one skip_count
+// otherwise single stepping goes tits up
+int tty_kb_skip_count = 0;
+int tty_tp_skip_count = 0;
 char tty_output_char = '\0';
-
-char tty_input_wanted = 0;
-char tty_input_received = 0;
-char tty_input_char = '\0';
 
 int interrupted_by_console = 1;
 short internal_stop_at = -1;
@@ -44,8 +42,19 @@ int backend_interrupted()
   return interrupted_by_console;
 }
 
+typedef enum device_name {
+  KB,
+  TP,
+  RX,
+  CPU
+} device_name_t;
+
 char backend_run(char single)
 {
+  static device_name_t devices[4] = { CPU, KB, TP, RX };
+  static int cur_device = 3;
+  static int num_devices = 4;
+
   while(1){
     if( backend_interrupted() ){
       return 'I';
@@ -53,22 +62,39 @@ char backend_run(char single)
     
     // This loops calls each emulated device in turn and acts on any
     // I/O activity.
-    
-    if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
-      // Current implementation requires at least one skip_count
-      // otherwise single stepping goes tits up
-      tty_skip_count = 0;
-      if( tty_process() ){
-	return 'T';
+    cur_device = (cur_device + 1) % num_devices;
+    switch( devices[cur_device] ){
+    case KB:
+      if( tty_kb_skip_count++ >= 50 ) {
+	tty_kb_skip_count = 0;
+	if( ! tty_kb_flag ){
+	  // If keyboard flag is not set, request one char.
+	  return 'K';
+	}
       }
+      break;
+    case TP:
+      if( tty_tp_skip_count++ >= 50 ) {
+	tty_tp_skip_count = 0;
+	if( tty_tp_process(&tty_output_char) ){
+	  return 'T';
+	}
+      }
+      break;
+    case RX:
+      rx01_process();
+      break;
+    case CPU:
+      if( cpu_process() == -1 ){
+	return 'H';
+      }
+      break;
+    default:
+      // Unknown device type
+      return 'E';
+      break;
     }
-    
-    rx01_process();
-    
-    if( cpu_process() == -1 ){
-      return 'H';
-    }
-    
+
     if( breakpoints[pc] & BREAKPOINT ){
       return 'B';
     }
@@ -105,19 +131,18 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
       char state = backend_run(single);
 
       switch( state ){
+      case 'K':
+	// TTY wants input
+	reply_buf[0] = 'T';
+	reply_buf[1] = 'R'; // TTY wants to Read
+	*reply_length = 2;
+	break;
       case 'T':
-	// TTY wants something
-	if( tty_output_pending ){
-	  reply_buf[0] = 'T';
-	  reply_buf[1] = 'W'; // TTY wants to Write
-	  reply_buf[2] = tty_output_char;
-	  *reply_length = 3;
-	  tty_output_sent = 1;
-	} else if( tty_input_wanted ){
-	  reply_buf[0] = 'T';
-	  reply_buf[1] = 'R'; // TTY wants to Read
-	  *reply_length = 2;
-	}
+	// TTY wants to output
+	reply_buf[0] = 'T';
+	reply_buf[1] = 'W'; // TTY wants to Write
+	reply_buf[2] = tty_output_char;
+	*reply_length = 3;
 	break;
       case 'R':
 	// RX wants something
@@ -185,8 +210,8 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
     *reply_length = 1;
     break;
   case 'T':
-    tty_input_received = 1;
-    tty_input_char = buf[1];
+    // Got char for TTY Keyboard
+    tty_kb_process(buf[1]);
     reply_buf[0] = 'A'; // ACKnowledge communication
     *reply_length = 1;
     break;
@@ -428,37 +453,6 @@ void backend_set_stop_at(short addr)
 void backend_interrupt()
 {
   interrupted_by_console = 1;
-}
-
-
-char backend_read_tty_byte(char *input)
-{
-  if( tty_input_wanted && tty_input_received ){
-    tty_input_wanted = tty_input_received = 0;
-    *input = tty_input_char;
-    return 1;
-  } else {
-    tty_input_wanted = 1;
-    return 0;
-  }
-}
-
-
-char backend_write_tty_byte(char output)
-{
-  if( tty_output_pending && tty_output_sent ){
-    // There was a request to write, and has been sent to frontend
-    tty_output_pending = tty_output_sent = 0;
-    return 1;
-  } else {
-    // Queue char for sending.
-    tty_output_pending = 1;
-    // Notice that the separate tty_output_sent flag allows the output
-    // char to change should this function be called before output is
-    // sent to the frontend. In practice it is sent immediately
-    tty_output_char = output;
-    return 0;
-  }
 }
 
 

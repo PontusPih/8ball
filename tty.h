@@ -20,7 +20,8 @@ extern short tty_dcr; // device control register
 #define TTY_IE_MASK 01
 
 void tty_reset(void);
-char tty_process(void);
+void tty_kb_process(char input);
+char tty_tp_process(char* output);
 void tty_initiate_output();
 
 #endif // _TTY_H_
