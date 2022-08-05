@@ -17,6 +17,11 @@ char tty_input_char = '\0';
 int interrupted_by_console = 1;
 short internal_stop_at = -1;
 
+void backend_toggle_bp(short addr);
+short backend_examine_bp(short addr);
+void backend_set_stop_at(short addr);
+short backend_examine_deposit_reg(register_name_t reg, short val, char dep);
+
 void backend_setup()
 {
   cpu_init();

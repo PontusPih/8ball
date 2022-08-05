@@ -9,17 +9,10 @@
 #ifndef _BACKEND_H_
 #define _BACKEND_H_
 
-#include "machine.h"
-
 void backend_setup();
-void backend_main();
-short backend_examine_deposit_reg(register_name_t reg, short val, char dep);
-char backend_run(char single);
 void backend_clear_all_bp();
-short backend_examine_bp(short addr);
-void backend_toggle_bp(short addr);
-void backend_set_stop_at(short addr);
 void backend_interrupt();
+// TODO remove
 char backend_read_tty_byte(char *output);
 char backend_write_tty_byte(char output);
 

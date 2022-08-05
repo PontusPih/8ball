@@ -11,8 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "console.h"
-#include "machine.h"
 #include "serial_com.h"
 #include "frontend.h"
 
