@@ -11,9 +11,9 @@
 
 void serial_setup(char* linename);
 void serial_teardown();
-void send_cmd(unsigned char *cmd, int len);
-int recv_cmd(unsigned char *out_buf);
-void send_console_break();
-char recv_console_break();
+void serial_send(unsigned char *cmd, int len);
+int serial_recv(unsigned char *out_buf);
+void serial_send_break();
+char serial_recv_break();
 
 #endif // _SERIAL_COM_H_

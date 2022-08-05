@@ -19,9 +19,9 @@ void frontend_setup(char *backend_address)
   serial_setup(backend_address);
 
   for( int i = 0; i < 5; i++ ){
-    send_console_break();
+    serial_send_break();
     sleep(1);
-    if( recv_console_break() ){
+    if( serial_recv_break() ){
       return;
     }
   }
@@ -46,8 +46,8 @@ short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
   }
   NO_ENTER = 1;
 
-  send_cmd(sbuf,slen);
-  short recv_res = recv_cmd(rbuf);
+  serial_send(sbuf,slen);
+  short recv_res = serial_recv(rbuf);
 
   NO_ENTER = 0;
   return recv_res;
@@ -56,7 +56,7 @@ short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
 
 void frontend_interrupt()
 {
-  send_console_break();
+  serial_send_break();
 }
 
 #endif

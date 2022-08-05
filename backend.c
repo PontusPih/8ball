@@ -37,7 +37,7 @@ void backend_setup()
 int backend_interrupted()
 {
 #ifdef PTY_CLI
-  if( recv_console_break() ){
+  if( serial_recv_break() ){
     interrupted_by_console = 1;
   }
 #endif
@@ -51,12 +51,8 @@ char backend_run(char single)
       return 'I';
     }
     
-    // This loops calls each emulated device in turn and any call that
-    // uses recv_cmd() must return to console mode immediately if the
-    // CONSOLE byte has been received.
-    
-    // Any device that can should be able to resume state if CONSOLE
-    // has been recv:d
+    // This loops calls each emulated device in turn and acts on any
+    // I/O activity.
     
     if( tty_skip_count++ >= 100  ){ // TODO simulate slow TTY (update maindec-d0cc to do all loops)
       // Current implementation requires at least one skip_count
@@ -473,8 +469,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
   while(1){
     // First start in CONSOLE mode
     unsigned char buf[128];
-    if( recv_cmd(buf) < 0 ) {
-      send_console_break();
+    if( serial_recv(buf) < 0 ) {
+      serial_send_break();
       interrupted_by_console = 1;
       continue; // Received break and acked it, get next command
     }
@@ -489,13 +485,13 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     int reply_length = 0;
     backend_dispatch(buf, reply_buf, &reply_length);
 
-    if( reply_length > 0){
-      send_cmd(reply_buf, reply_length);
-    } else {
+    if( reply_length <= 0){
       // BAD STATE, try to notify console
       reply_buf[0] = 'E';
-      send_cmd(reply_buf, 1);
+      reply_length = 1;
     }
+
+    serial_send(reply_buf, reply_length);
   }
 }
 #endif

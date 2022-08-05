@@ -49,13 +49,13 @@ void serial_teardown()
   channel_teardown();
 }
 
-char recv_console_break()
+char serial_recv_break()
 {
   return find_byte_nonblocking(CONSOLE);
 }
 
 // Send one frame, escape special characters.
-void send_cmd(unsigned char *cmd, int len)
+void serial_send(unsigned char *cmd, int len)
 {
   write_byte(START_FRAME);
 #ifdef DEBUG_PRINT
@@ -92,7 +92,7 @@ void send_cmd(unsigned char *cmd, int len)
 
 
 // Send console break character.
-void send_console_break()
+void serial_send_break()
 {
   write_byte(CONSOLE);
   printf(" BREAK: %s \n", PTY_CLI);
@@ -108,7 +108,7 @@ void send_console_break()
 // If any error is detected such as an unexpected special character or
 // byte might be lost we reset the state and wait for a new frame. It
 // is up to the sender to retry or go to console mode.
-int recv_cmd(unsigned char *out_buf)
+int serial_recv(unsigned char *out_buf)
 {
   int i = 0;
   unsigned char byte;
