@@ -20,11 +20,17 @@
 // The file descriptor used for communications is assumed to be in
 // non-blocking mode.
 
-#include "serial_com.h"
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <fcntl.h>
+#include <stdlib.h>
+#include "serial_com.h"
+
+// These functions are platform specific to communcation mechanism and
+// must be implemented elsewhere.
+void write_byte(char byte);
+char read_byte();
+char find_byte_nonblocking(char target);
+void channel_setup(char* linename);
+void channel_teardown();
 
 #define START_FRAME ('{')
 #define END_FRAME   ('}')
@@ -33,24 +39,25 @@
 
 // #define DEBUG_PRINT
 
-// "blocking" write of single byte
-static void write_byte(int fd, char byte)
+void serial_setup(char* linename)
 {
-  ssize_t rlen = write(fd, &byte, 1);
+  channel_setup(linename);
+}
 
-  if( rlen < 1 ){
-    printf("Unable to write to PTY\n");
-    if( rlen < 0 ){
-      perror(__func__);
-    }
-    exit(EXIT_FAILURE);
-  }
+void serial_teardown()
+{
+  channel_teardown();
+}
+
+char recv_console_break()
+{
+  return find_byte_nonblocking(CONSOLE);
 }
 
 // Send one frame, escape special characters.
-void send_cmd(int fd, unsigned char *cmd, int len)
+void send_cmd(unsigned char *cmd, int len)
 {
-  write_byte(fd, START_FRAME);
+  write_byte(START_FRAME);
 #ifdef DEBUG_PRINT
   printf("Sent: %c ", START_FRAME);
 #endif
@@ -64,7 +71,7 @@ void send_cmd(int fd, unsigned char *cmd, int len)
 #ifdef DEBUG_PRINT
       printf("%c ", ESCAPE);
 #endif
-      write_byte(fd, ESCAPE);
+      write_byte(ESCAPE);
       break;
     }
 #ifdef DEBUG_PRINT
@@ -74,10 +81,10 @@ void send_cmd(int fd, unsigned char *cmd, int len)
       printf("%x ", cmd[i]);
     }
 #endif
-    write_byte(fd, cmd[i]);
+    write_byte(cmd[i]);
   }
 
-  write_byte(fd, END_FRAME);
+  write_byte(END_FRAME);
 #ifdef DEBUG_PRINT
   printf("%c\n", END_FRAME);
 #endif
@@ -85,44 +92,10 @@ void send_cmd(int fd, unsigned char *cmd, int len)
 
 
 // Send console break character.
-void send_console_break(int fd)
+void send_console_break()
 {
-  write_byte(fd, CONSOLE);
+  write_byte(CONSOLE);
   printf(" BREAK: %s \n", PTY_CLI);
-}
-
-
-// Check for console character. read must be nonblocking.
-char recv_console_break(int fd)
-{
-  char byte;
-  ssize_t len = 0;
-  int flags = fcntl(fd, F_GETFL, 0);
-  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  do {
-    len = read(fd, &byte, 1);
-  } while ( len == 1 && byte != CONSOLE );
-  fcntl(fd, F_SETFL, flags);
-
-  return len == 1 && byte == CONSOLE;
-}
-
-
-// "blocking" read of one byte
-static char read_byte(int fd)
-{
-  char byte;
-  ssize_t len = 0;
-  do {
-    len = read(fd, &byte, 1);
-  } while( len == 0 );
-
-  if( len < 0 ){
-    printf("Unable to read from PTY\n");
-    perror(__func__);
-    exit(EXIT_FAILURE);
-  }
-  return byte;
 }
 
 
@@ -135,7 +108,7 @@ static char read_byte(int fd)
 // If any error is detected such as an unexpected special character or
 // byte might be lost we reset the state and wait for a new frame. It
 // is up to the sender to retry or go to console mode.
-int recv_cmd(int fd, unsigned char *out_buf)
+int recv_cmd(unsigned char *out_buf)
 {
   int i = 0;
   unsigned char byte;
@@ -144,7 +117,7 @@ int recv_cmd(int fd, unsigned char *out_buf)
   printf("Recv: ");
 #endif 
   do{
-    byte = read_byte(fd);
+    byte = read_byte();
 #ifdef DEBUG_PRINT
     if( isprint(byte) ){
       printf("%c ", byte);
@@ -177,7 +150,7 @@ int recv_cmd(int fd, unsigned char *out_buf)
     }
 
     if( state == ESCAPED ){
-      byte = read_byte(fd);
+      byte = read_byte();
       switch(byte) {
       case START_FRAME:
       case END_FRAME:

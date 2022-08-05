@@ -7,28 +7,23 @@
 */
 
 #ifdef PTY_CLI
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "console.h"
-#define _XOPEN_SOURCE 600
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdio.h>
-#define _BSD_SOURCE 1
-#define __USE_MISC 1
-#include <termios.h>
-#include <unistd.h>
-int pts = -1; // PTY slave handle
-
 #include "machine.h"
 #include "serial_com.h"
 #include "frontend.h"
 
-void frontend_connect_or_die()
+void frontend_setup(char *pty_name)
 {
+  serial_setup(pty_name);
+
   for( int i = 0; i < 5; i++ ){
-    send_console_break(pts);
+    send_console_break();
     sleep(1);
-    if( recv_console_break(pts) ){
+    if( recv_console_break() ){
       return;
     }
   }
@@ -38,33 +33,9 @@ void frontend_connect_or_die()
 }
 
 
-void frontend_setup(char *pty_name)
-{
-  if( pty_name == NULL ){
-    printf("Please give a PTY name\n");
-    exit(EXIT_FAILURE);
-  }
-  pts = open(pty_name, O_RDWR|O_NOCTTY);
-  
-  if( pts == -1 ){
-    printf("Unable to open %s\n", pty_name);
-    exit(EXIT_FAILURE);
-  }
-  
-  struct termios cons_old_settings;
-  struct termios cons_new_settings;
-  tcgetattr(pts, &cons_old_settings);
-  cons_new_settings = cons_old_settings;
-  cfmakeraw(&cons_new_settings);
-  tcsetattr(pts, TCSANOW, &cons_new_settings);
-
-  frontend_connect_or_die();
-}
-
-
 void frontend_cleanup()
 {
-  close(pts);
+  serial_teardown();
 }
 
 
@@ -77,8 +48,8 @@ short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
   }
   NO_ENTER = 1;
 
-  send_cmd(pts,sbuf,slen);
-  short recv_res = recv_cmd(pts, rbuf);
+  send_cmd(sbuf,slen);
+  short recv_res = recv_cmd(rbuf);
 
   NO_ENTER = 0;
   return recv_res;
@@ -87,7 +58,7 @@ short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
 
 void frontend_interrupt()
 {
-  send_console_break(pts);
+  send_console_break();
 }
 
 #endif

@@ -1,13 +1,6 @@
 #ifdef PTY_CLI
-#define _XOPEN_SOURCE 700
-#include <fcntl.h>
-
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-
-int ptm = -1; // PTY master handle
 #else
 #include "console.h"
 #endif
@@ -38,24 +31,7 @@ void backend_setup()
   rx8e_reset();
 
 #ifdef PTY_CLI
-  if( (ptm = posix_openpt(O_RDWR|O_NOCTTY)) == -1){
-    printf("Unable to open PTMX\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if( grantpt(ptm) == -1 ){
-    printf("grantp() failed\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if( unlockpt(ptm) == -1 ){
-    printf("Unable to unlock PTY\n");
-    exit(EXIT_FAILURE);
-  }
-
-  int fd = creat("ptsname.txt", S_IRUSR | S_IWUSR);
-  write(fd, ptsname(ptm), strlen(ptsname(ptm)));
-  close(fd);
+  serial_setup(NULL);
 #endif
 }
 
@@ -63,7 +39,7 @@ void backend_setup()
 int backend_interrupted()
 {
 #ifdef PTY_CLI
-  if( recv_console_break(ptm) ){
+  if( recv_console_break() ){
     interrupted_by_console = 1;
   }
 #endif
@@ -497,8 +473,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
   while(1){
     // First start in CONSOLE mode
     unsigned char buf[128];
-    if( recv_cmd(ptm, buf) < 0 ) {
-      send_console_break(ptm);
+    if( recv_cmd(buf) < 0 ) {
+      send_console_break();
       interrupted_by_console = 1;
       continue; // Received break and acked it, get next command
     }
@@ -519,7 +495,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     backend_dispatch(buf, reply_buf, &reply_length);
 
     if( reply_length > 0){
-      send_cmd(ptm, reply_buf, reply_length);
+      send_cmd(reply_buf, reply_length);
     } else {
       printf( "BAD STATE, no reply to console\n");
       exit(EXIT_FAILURE);
