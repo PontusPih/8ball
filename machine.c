@@ -8,7 +8,7 @@
 
 #include <stdio.h> // for RX and TTY file read
 #include <stdlib.h> // For exit()
-#include <unistd.h>
+#include <unistd.h> // For read()
 
 #include "cpu.h"
 #include "tty.h"
@@ -20,12 +20,12 @@
 
 #define UNUSED(x) (void)(x);
 
-void machine_setup(char *pty_name)
+void machine_setup(char *backend_address)
 {
 #ifdef PTY_CLI
-  frontend_setup(pty_name);
+  frontend_setup(backend_address);
 #else
-  UNUSED(pty_name); // To avoid warning.
+  UNUSED(backend_address); // To avoid warning.
   backend_setup();
 #endif
 }

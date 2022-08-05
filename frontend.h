@@ -9,7 +9,7 @@
 #ifndef _FRONTEND_H_
 #define _FRONTEND_H_
 
-void frontend_setup(char *pty_name);
+void frontend_setup(char *backend_address);
 short frontend_examine_mem(short addr);
 void frontend_deposit_mem(short addr, short val);
 short frontend_operand_addr(short addr, char examine);

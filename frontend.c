@@ -16,9 +16,9 @@
 #include "serial_com.h"
 #include "frontend.h"
 
-void frontend_setup(char *pty_name)
+void frontend_setup(char *backend_address)
 {
-  serial_setup(pty_name);
+  serial_setup(backend_address);
 
   for( int i = 0; i < 5; i++ ){
     send_console_break();
