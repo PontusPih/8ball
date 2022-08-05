@@ -65,6 +65,7 @@ short machine_interact(unsigned char *send_buf, int send_len)
   case 'V': // Value for console examine
   case 'A': // Acknowledge, for console deposit
     break;
+  case 'E': // Something went wrong in backend
   default:
     printf("BAD STATE, backend sent:");
     if( recv_res < 0 ){
@@ -149,6 +150,11 @@ char machine_run(char single)
       } else {
 	state = RUN;
       }
+      break;
+    case 'E':
+      // An error occured in the backend
+      printf("Backend is in a bad state, suggest restart\n");
+      return reply_buf[0];
       break;
     default:
       return reply_buf[0];

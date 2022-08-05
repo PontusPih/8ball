@@ -17,7 +17,6 @@
 #include "linenoise.h"
 #include "console.h"
 #include "cpu.h"
-#include "tty.h"
 #include "rx8.h"
 #include "machine.h"
 
@@ -1301,6 +1300,7 @@ void console(void)
 void exit_cleanup(void)
 {
   save_state("prev.core");
+  machine_cleanup();
   tcsetattr(0, TCSANOW, &told);
 }
 

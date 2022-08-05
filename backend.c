@@ -1,15 +1,8 @@
-#ifdef PTY_CLI
-#include <stdlib.h>
-#include <stdio.h>
-#else
 #include "console.h"
-#endif
-
 #include "cpu.h"
 #include "tty.h"
 #include "rx8.h"
 #include "serial_com.h"
-#include "machine.h"
 #include "backend.h"
 
 int tty_skip_count = 0;
@@ -21,7 +14,7 @@ char tty_input_wanted = 0;
 char tty_input_received = 0;
 char tty_input_char = '\0';
 
-int interrupted_by_console = 0;
+int interrupted_by_console = 1;
 short internal_stop_at = -1;
 
 void backend_setup()
@@ -30,8 +23,8 @@ void backend_setup()
   tty_reset();
   rx8e_reset();
 
-#ifdef PTY_CLI
-  serial_setup(NULL);
+#ifdef PTY_CLI // TODO remove and handle in Makefile
+  serial_setup(0);
 #endif
 }
 
@@ -100,11 +93,12 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
 {
   switch(buf[0]) {
   case 'R': // Start execution
-    // printf("Running CPU\n");
-    __attribute__ ((fallthrough));
-  case 'C': // Continue running
     __attribute__ ((fallthrough));
   case 'S': // Single step
+    // Run or single step command means cpu no longer interrupted.
+    interrupted_by_console = 0;
+    __attribute__ ((fallthrough));
+  case 'C': // Continue running
     {
       char single = buf[0] == 'S' ? 1 : 0;
       char state = backend_run(single);
@@ -154,10 +148,18 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
 	res = backend_examine_bp(buf2short(buf,2));
 	break;
       }
-      reply_buf[0] = 'V';
-      reply_buf[1] = res >> 8;
-      reply_buf[2] = res & 0xFF;
-      *reply_length = 3;
+
+      if( res == -1 ) {
+	// No register or memory address should be outside of 12 bits,
+	// Something went wrong
+	reply_buf[0] = 'E';
+	*reply_length = 1;
+      } else {
+	reply_buf[0] = 'V';
+	reply_buf[1] = res >> 8;
+	reply_buf[2] = res & 0xFF;
+	*reply_length = 3;
+      }
     }
     break;
   case 'D': // Deposit
@@ -166,7 +168,6 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
       backend_examine_deposit_reg(buf[2], buf2short(buf,3), 1);
       break;
     case 'M': // Memory
-      //printf("%o = %o\n", buf2short(buf,2) ,  buf2short(buf,4));
       mem[buf2short(buf,2)] = buf2short(buf,4);
       break;
     case 'B': // Breakpoint
@@ -387,11 +388,10 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
     }
     res = rx_ready[1];
     break;
-#ifdef PTY_CLI
   default:
-    printf("OOPS, unknown reg, |%d|", reg);
-    exit(EXIT_FAILURE);
-#endif
+    // Unkown register, no way of telling frontend TODO
+    res = -1;
+    break;
   }
 
   return res;
@@ -445,7 +445,6 @@ char backend_read_tty_byte(char *input)
 
 char backend_write_tty_byte(char output)
 {
-#ifdef PTY_CLI
   if( tty_output_pending && tty_output_sent ){
     // There was a request to write, and has been sent to frontend
     tty_output_pending = tty_output_sent = 0;
@@ -459,17 +458,13 @@ char backend_write_tty_byte(char output)
     tty_output_char = output;
     return 0;
   }
-#else
-  machine_write_tty_byte(output);
-  return 1;
-#endif
 }
 
 
 #ifdef PTY_CLI
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 {
-  backend_setup(NULL);
+  backend_setup();
   while(1){
     // First start in CONSOLE mode
     unsigned char buf[128];
@@ -483,11 +478,6 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
       if( buf[0] == 'C' ){
 	continue; // When interrupted, ignore continue commands.
       }
-      if( buf[0] == 'R' || buf[0] == 'S' ){
-	 // Run or single step command means we are no longer
-	 // interrupted.
-	interrupted_by_console = 0;
-      }
     }
 
     unsigned char reply_buf[3]; // Max length is three so far :)
@@ -497,8 +487,9 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     if( reply_length > 0){
       send_cmd(reply_buf, reply_length);
     } else {
-      printf( "BAD STATE, no reply to console\n");
-      exit(EXIT_FAILURE);
+      // BAD STATE, try to notify console
+      reply_buf[0] = 'E';
+      send_cmd(reply_buf, 1);
     }
   }
 }
