@@ -49,15 +49,17 @@ typedef enum device_name {
   CPU
 } device_name_t;
 
-char backend_run(char single)
+void backend_run(char single, unsigned char *reply_buf, int *reply_length)
 {
   static device_name_t devices[4] = { CPU, KB, TP, RX };
   static int cur_device = 3;
   static int num_devices = 4;
+  *reply_length = 1; // Modify for longer replies
 
   while(1){
     if( backend_interrupted() ){
-      return 'I';
+      reply_buf[0] = 'I';
+      return;
     }
     
     // This loops calls each emulated device in turn and acts on any
@@ -69,7 +71,10 @@ char backend_run(char single)
 	tty_kb_skip_count = 0;
 	if( ! tty_kb_flag ){
 	  // If keyboard flag is not set, request one char.
-	  return 'K';
+	  reply_buf[0] = 'T';
+	  reply_buf[1] = 'R'; // TTY wants to Read
+	  *reply_length = 2;
+	  return;
 	}
       }
       break;
@@ -77,7 +82,11 @@ char backend_run(char single)
       if( tty_tp_skip_count++ >= 50 ) {
 	tty_tp_skip_count = 0;
 	if( tty_tp_process(&tty_output_char) ){
-	  return 'T';
+	  reply_buf[0] = 'T';
+	  reply_buf[1] = 'W'; // TTY wants to Write
+	  reply_buf[2] = tty_output_char;
+	  *reply_length = 3;
+	  return;
 	}
       }
       break;
@@ -86,25 +95,29 @@ char backend_run(char single)
       break;
     case CPU:
       if( cpu_process() == -1 ){
-	return 'H';
+	reply_buf[0] = 'H';
+	return;
       }
       break;
     default:
       // Unknown device type
-      return 'E';
+      reply_buf[0] = 'E';
       break;
     }
 
     if( breakpoints[pc] & BREAKPOINT ){
-      return 'B';
+      reply_buf[0] = 'B';
+      return;
     }
     
     if( internal_stop_at >= 0 && pc == internal_stop_at ){
-      return 'P';
+      reply_buf[0] = 'P';
+      return;
     }      
     
     if( single ){
-      return 'S';
+      reply_buf[0] = 'S';
+      return;
     }
   }
 }
@@ -128,30 +141,7 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
   case 'C': // Continue running
     {
       char single = buf[0] == 'S' ? 1 : 0;
-      char state = backend_run(single);
-
-      switch( state ){
-      case 'K':
-	// TTY wants input
-	reply_buf[0] = 'T';
-	reply_buf[1] = 'R'; // TTY wants to Read
-	*reply_length = 2;
-	break;
-      case 'T':
-	// TTY wants to output
-	reply_buf[0] = 'T';
-	reply_buf[1] = 'W'; // TTY wants to Write
-	reply_buf[2] = tty_output_char;
-	*reply_length = 3;
-	break;
-      case 'R':
-	// RX wants something
-	break;
-      default:
-	reply_buf[0] = state;
-	*reply_length = 1;
-	break;
-      }
+      backend_run(single, reply_buf, reply_length);
     }
     break;
   case 'E': // Examine
@@ -175,9 +165,9 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
 	break;
       }
 
-      if( res == -1 ) {
-	// No register or memory address should be outside of 12 bits,
-	// Something went wrong
+      if( buf[1] == 'M' && (res & (~B12_MASK)) ) {
+	// No memory value should be outside of 12 bits, something
+	// went wrong
 	reply_buf[0] = 'E';
 	*reply_length = 1;
       } else {
@@ -216,7 +206,7 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
     *reply_length = 1;
     break;
   default:
-    reply_buf[0] = 'U';
+    reply_buf[0] = 'E'; // Unkown command, raise Error TODO
     *reply_length = 1;
     break;
   }
