@@ -849,7 +849,7 @@ void console(void)
           printf("DF = %o\n", machine_examine_reg(DF));
           break;
         case E_IF:
-          printf("IF = %o\n", (machine_examine_reg(PC) & IF_MASK) >> 12);
+          printf("IF = %o\n", machine_examine_reg(IF));
           break;
         case E_INHIB:
           printf("INHIB = %o\n", machine_examine_reg(INTR_INHIBIT));
@@ -957,22 +957,24 @@ void console(void)
           break;
         case E_DF:
           val = read_12bit_octal(_3rd_str);
-          if( val >= 0 ){
+          if( val >= 0 && val <= 3){
             machine_deposit_reg(DF,val);
             printf("DF = %o\n", machine_examine_reg(DF));
+          } else {
+            printf("Syntax ERROR, DF can be between 0 and 03\n");
           }
           break;
         case E_IF:
           val = read_12bit_octal(_3rd_str);
           if( val >= 0 && val <= 3){
-            machine_deposit_reg(PC,(((val << 12 ) & FIELD_MASK) | (machine_examine_reg(PC) & B12_MASK)));
-            printf("IF = %o\n", (machine_examine_reg(PC) & FIELD_MASK) >> 12);
+            machine_deposit_reg(IF,val);
+            printf("IF = %o\n", machine_examine_reg(IF));
           } else {
             printf("Syntax ERROR, IF can be between 0 and 03\n");
           }
           break;
         case E_PC:
-          val = read_15bit_octal(_3rd_str);
+          val = read_12bit_octal(_3rd_str);
           if( val >= 0 ){
             machine_deposit_reg(PC,val);
             printf("PC = %o\n", machine_examine_reg(PC));

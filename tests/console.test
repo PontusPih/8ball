@@ -87,8 +87,9 @@ d pc 300
 d ac 7101
 d mq 1234
 d sr 2323
-d df 4
+d df 2
 d if 3
+e pc
 exit
 >>>
 00000  6032 KCC
@@ -96,8 +97,9 @@ PC = 300
 AC = 7101
 MQ = 1234
 SR = 2323
-DF = 4
+DF = 2
 IF = 3
+PC = 300
 >>>=0
 
 

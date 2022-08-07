@@ -150,6 +150,7 @@ typedef enum register_name {
   PC,
   MQ,
   DF,
+  IF,
   IB,
   UB,
   UF,

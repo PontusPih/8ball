@@ -228,7 +228,7 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
     if( dep ){
       pc = val;
     }
-    res = pc;
+    res = (pc & B12_MASK);
     break;
   case MQ:
     if( dep ){
@@ -238,9 +238,15 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
     break;
   case DF:
     if( dep ){
-      df = val;
+      df = val & 03;
     }
     res = df;
+    break;
+  case IF:
+    if( dep ){
+      pc = (((val << 12 ) & FIELD_MASK) | (pc & B12_MASK));
+    }
+    res = (pc & FIELD_MASK) >> 12;
     break;
   case IB:
     if( dep ){
