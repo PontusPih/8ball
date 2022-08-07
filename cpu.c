@@ -35,13 +35,12 @@ short rtf_delay = 0; //ion will be set after next fetch
 // TODO add F D E state bits
 
 short mem[MEMSIZE];
-short breakpoints[MEMSIZE];
 
 void cpu_init(void){
   int i;
+  // Clear all data and breakpoints
   for( i=0 ; i<MEMSIZE; i++){
     mem[i] = 0;
-    breakpoints[i] = 0;
   }
 #include "rimloader.h"
 #include "rxloader.h"
@@ -82,11 +81,25 @@ short operand_addr(short pc, char examine)
         &&
         ! examine ){
       // autoindex addressing
-      mem[addr] = INC_12BIT(mem[addr]);
+      mem_write(addr, INC_12BIT(mem_read(addr)));
     }
-    addr = (addr & FIELD_MASK) | (mem[addr] & B12_MASK);
+    addr = (addr & FIELD_MASK) | mem_read(addr);
   }
   return addr;
+}
+
+
+short mem_read(short addr)
+{
+  // Return 12 bit data, ignoring breakpoint bit
+  return mem[addr] & B12_MASK;
+}
+
+
+void mem_write(short addr, short value)
+{
+  // Set 12 bit data, preserve breakpoint bit
+  mem[addr] = (mem[addr] & ~B12_MASK) | (value & B12_MASK);
 }
 
 
@@ -95,10 +108,28 @@ void cpu_raise_interrupt(short flag)
   intr |= flag;
 }
 
+
 void cpu_lower_interrupt(short flag)
 {
   intr &= ~flag;
 }
+
+
+void cpu_set_breakpoint(short addr, char set)
+{
+  if( set ){
+    mem[addr] |= BREAKPOINT;
+  } else {
+    mem[addr] &= ~(BREAKPOINT);
+  }
+}
+
+
+char cpu_get_breakpoint(short addr)
+{
+  return mem[addr] & BREAKPOINT ? 1 : 0;
+}
+
 
 int cpu_process()
 {
@@ -158,23 +189,22 @@ int cpu_process()
   switch( mb & IF_MASK ){
   case AND:
     // AND AC and operand, preserve LINK.
-    ac &= (mem[cpma] | LINK_MASK);
+    ac &= (mem_read(cpma) | LINK_MASK);
     break;
   case TAD:
     // Two complements add of AC and operand.
-    // TODO: Sign extension
-    ac = (ac + mem[cpma]) & LINK_AC_MASK;
+    ac = (ac + mem_read(cpma)) & LINK_AC_MASK;
     break;
   case ISZ:
     // Skip next instruction if operand is zero.
-    mem[cpma] = INC_12BIT(mem[cpma]);
-    if( mem[cpma] == 0 ){
+    mem_write(cpma, INC_12BIT(mem_read(cpma)));
+    if( mem_read(cpma) == 0 ){
       pc = INC_PC(pc);
     }
     break;
   case DCA:
     // Deposit and Clear AC
-    mem[cpma] = (ac & AC_MASK);
+    mem_write(cpma, (ac & AC_MASK));
     ac = (ac & LINK_MASK);
     break;
   case JMS:
@@ -186,7 +216,7 @@ int cpu_process()
       intr_inhibit = 0;
     }
     // Jump and store return address.
-    mem[cpma] = (pc & B12_MASK);
+    mem_write(cpma, (pc & B12_MASK));
     pc = (pc & FIELD_MASK) | INC_12BIT(cpma);
     break;
   case JMP:

@@ -103,7 +103,7 @@ void backend_run(char single, unsigned char *reply_buf, int *reply_length)
       break;
     }
 
-    if( breakpoints[pc] & BREAKPOINT ){
+    if( cpu_get_breakpoint(pc) ){
       reply_buf[0] = 'B';
       return;
     }
@@ -150,7 +150,7 @@ void backend_dispatch(unsigned char *buf, __attribute__ ((unused)) int send_leng
 	res = backend_examine_deposit_reg(buf[2], 0, 0);
 	break;
       case 'M': // Memory
-	res = mem[buf2short(buf,2)];
+	res = mem_read(buf2short(buf,2));
 	break;
       case 'O': // Operand addr
 	res = operand_addr(buf2short(buf,2), buf[4]);
@@ -182,7 +182,7 @@ void backend_dispatch(unsigned char *buf, __attribute__ ((unused)) int send_leng
       backend_examine_deposit_reg(buf[2], buf2short(buf,3), 1);
       break;
     case 'M': // Memory
-      mem[buf2short(buf,2)] = buf2short(buf,4);
+      mem_write(buf2short(buf,2), buf2short(buf,4));
       break;
     case 'B': // Breakpoint
       backend_toggle_bp(buf2short(buf, 2));
@@ -426,20 +426,20 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
 void backend_clear_all_bp()
 {
   for(int i = 0; i<= MEMSIZE; i++){
-    breakpoints[i] = 0;
+    cpu_set_breakpoint(i, 0);
   }
 }
 
 
 short backend_examine_bp(short addr)
 {
-  return breakpoints[addr];
+  return cpu_get_breakpoint(addr);
 }
 
 
 void backend_toggle_bp(short addr)
 {
-  breakpoints[addr] = breakpoints[addr] ^ BREAKPOINT;
+  cpu_set_breakpoint(addr, cpu_get_breakpoint(addr) ? 0 : 1);
 }
 
 

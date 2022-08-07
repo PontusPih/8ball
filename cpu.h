@@ -31,15 +31,16 @@ extern short ub; // User Buffer
 extern short rtf_delay; //ion will be set after next fetch
 // TODO add F D E state bits
 
-extern short mem[];
-extern short breakpoints[];
-
 void cpu_init(void);
 int cpu_process(void);
 short direct_addr(short pc);
 short operand_addr(short pc, char examine);
+short mem_read(short addr);
+void mem_write(short addr, short value);
 void cpu_raise_interrupt(short flag);
 void cpu_lower_interrupt(short flag);
+void cpu_set_breakpoint(short addr, char set);
+char cpu_get_breakpoint(short addr);
 
 #define MEMSIZE 0100000 // MAX 0100000
 #define FIELD_MASK 070000
