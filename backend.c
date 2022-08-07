@@ -96,25 +96,25 @@ void backend_run(char single, unsigned char *reply_buf, int *reply_length)
 	reply_buf[0] = 'H';
 	return;
       }
+
+      if( cpu_get_breakpoint(pc) ){
+	reply_buf[0] = 'B';
+	return;
+      }
+
+      if( internal_stop_at >= 0 && pc == internal_stop_at ){
+	reply_buf[0] = 'P';
+	return;
+      }
+
+      if( single ){
+	reply_buf[0] = 'S';
+	return;
+      }
       break;
     default:
       // Unknown device type
       reply_buf[0] = 'E';
-      break;
-    }
-
-    if( cpu_get_breakpoint(pc) ){
-      reply_buf[0] = 'B';
-      return;
-    }
-    
-    if( internal_stop_at >= 0 && pc == internal_stop_at ){
-      reply_buf[0] = 'P';
-      return;
-    }      
-    
-    if( single ){
-      reply_buf[0] = 'S';
       return;
     }
   }
@@ -209,7 +209,7 @@ void backend_dispatch(unsigned char *buf, __attribute__ ((unused)) int send_leng
     *reply_length = 1;
     break;
   default:
-    reply_buf[0] = 'E'; // Unkown command, raise Error TODO
+    reply_buf[0] = 'E'; // Unknown command, raise Error TODO
     *reply_length = 1;
     break;
   }
@@ -414,7 +414,7 @@ short backend_examine_deposit_reg(register_name_t reg, short val, char dep)
     res = rx_ready[1];
     break;
   default:
-    // Unkown register, no way of telling frontend TODO
+    // Unknown register, no way of telling frontend TODO
     res = -1;
     break;
   }
