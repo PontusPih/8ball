@@ -16,18 +16,12 @@
 #include "machine.h"
 
 #include "frontend.h"
-#include "backend.h"
 
 #define UNUSED(x) (void)(x);
 
 void machine_setup(char *backend_address)
 {
-#ifdef PTY_CLI
   frontend_setup(backend_address);
-#else
-  UNUSED(backend_address); // To avoid warning.
-  backend_setup();
-#endif
 }
 
 
@@ -39,14 +33,7 @@ static short buf2short(unsigned char *b, int i)
 
 short machine_dispatch(unsigned char *sbuf, int slen, unsigned char *rbuf)
 {
-#ifdef PTY_CLI
   return frontend_send_receive(sbuf, slen, rbuf);
-#else
-  UNUSED(slen);
-  int rlen;
-  backend_dispatch(sbuf, rbuf, &rlen);
-  return 0;
-#endif
 }
 
 
@@ -54,36 +41,29 @@ short machine_interact(unsigned char *send_buf, int send_len)
 {
   short result = 0;
   unsigned char rbuf[3];
-#ifdef PTY_CLI
-  int recv_res = frontend_send_receive(send_buf, send_len, rbuf);
 
-  if( recv_res < 0 ){
+  short reply_length = frontend_send_receive(send_buf, send_len, rbuf);
+
+  if( reply_length < 0 ){
     rbuf[0] = 'X'; // Ensure buf does not contain 'V' or 'A'
   }
   
   switch( rbuf[0] ){
   case 'V': // Value for console examine
+    result = buf2short(rbuf, 1);
+    break;
   case 'A': // Acknowledge, for console deposit
     break;
   case 'E': // Something went wrong in backend
   default:
     printf("BAD STATE, backend sent:");
-    if( recv_res < 0 ){
+    if( rbuf[0] == 'X' ){
       printf(" console break\n");
     } else {
       printf(" '%c'\n", rbuf[0]);
     }
     exit(EXIT_FAILURE);
     break;
-  }
-#else
-  UNUSED(send_len);
-  int reply_length;
-  backend_dispatch(send_buf, rbuf, &reply_length);
-#endif
-
-  if( rbuf[0] == 'V' ){  // Value, for console examine
-    result = buf2short(rbuf, 1);
   }
   
   return result;
@@ -236,19 +216,13 @@ void machine_set_stop_at(short addr)
 
 void machine_interrupt()
 {
-#ifdef PTY_CLI
   frontend_interrupt();
-#else
-  backend_interrupt();
-#endif
 }
 
 
 void machine_cleanup()
 {
-#ifdef PTY_CLI
   frontend_cleanup();
-#endif
 }
 
 
