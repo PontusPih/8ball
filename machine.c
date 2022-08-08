@@ -208,11 +208,8 @@ void machine_deposit_reg(register_name_t regname, short val)
 
 void machine_clear_all_bp()
 {
-#ifdef PTY_CLI
-  // TODO Clear all breakpoints
-#else
-  backend_clear_all_bp();
-#endif
+  unsigned char buf[2] = { 'D', 'C' };
+  machine_interact(buf, sizeof(buf));
 }
 
 

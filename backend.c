@@ -192,6 +192,9 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
     case 'P': // Stop at
       backend_set_stop_at(buf2short(buf,2));
       break;
+    case 'C':
+      backend_clear_all_bp();
+      break;
     case 'X': // RX byte stream
       // TODO serial com support for RX
       break;
