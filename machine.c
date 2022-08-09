@@ -21,7 +21,11 @@
 
 void machine_setup(char *backend_address)
 {
-  frontend_setup(backend_address);
+  if( frontend_setup(backend_address) < 0 )
+  {
+    printf("Unable to setup machine\n");
+    exit(EXIT_FAILURE);
+  }
 }
 
 
@@ -31,9 +35,11 @@ static short buf2short(unsigned char *b, int i)
 }
 
 
-short machine_dispatch(unsigned char *sbuf, int slen, unsigned char *rbuf)
+short machine_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf)
 {
-  return frontend_send_receive(sbuf, slen, rbuf);
+  int reply_length = 0;
+  frontend_send_receive(send_buf, send_length, reply_buf, &reply_length);
+  return reply_length;
 }
 
 
@@ -41,8 +47,8 @@ short machine_interact(unsigned char *send_buf, int send_len)
 {
   short result = 0;
   unsigned char rbuf[3];
-
-  short reply_length = frontend_send_receive(send_buf, send_len, rbuf);
+  int reply_length = 0;
+  frontend_send_receive(send_buf, send_len, rbuf, &reply_length);
 
   if( reply_length < 0 ){
     rbuf[0] = 'X'; // Ensure buf does not contain 'V' or 'A'

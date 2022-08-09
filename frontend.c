@@ -9,10 +9,6 @@
 #include "frontend.h"
 
 #ifdef PTY_CLI
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "serial_com.h"
 #else
 #include "backend.h"
@@ -20,24 +16,22 @@
 
 #define UNUSED(x) (void)(x);
 
-void frontend_setup(char *backend_address)
+char frontend_setup(char *backend_address)
 {
 #ifdef PTY_CLI
   serial_setup(backend_address);
 
   for( int i = 0; i < 5; i++ ){
     serial_send_break();
-    sleep(1);
     if( serial_recv_break() ){
-      return;
+      return 1;
     }
   }
 
-  printf("Unable to do handshake with backend\n");
-  exit(EXIT_FAILURE);
+  return -1;
 #else
   UNUSED(backend_address); // To avoid warning.
-  backend_setup();
+  return backend_setup();
 #endif
 }
 
@@ -50,26 +44,23 @@ void frontend_cleanup()
 }
 
 
-short frontend_send_receive(unsigned char *sbuf, int slen, unsigned char *rbuf)
+void frontend_send_receive(unsigned char *send_buf, int send_length, unsigned char *reply_buf, int *reply_length)
 {
 #ifdef PTY_CLI
   static char NO_ENTER = 0;
   if( NO_ENTER == 1 ){
-    printf("GAH! Don't call frontend_send_receive twice!\n");
-    exit(EXIT_FAILURE);
+    reply_buf[0] = 'E';
+    *reply_length = 1;
+    return;
   }
   NO_ENTER = 1;
 
-  serial_send(sbuf,slen);
-  short reply_length = serial_recv(rbuf);
+  serial_send(send_buf, send_length);
+  *reply_length = serial_recv(reply_buf);
 
   NO_ENTER = 0;
-  return reply_length;
 #else
-  UNUSED(slen);
-  int rlen;
-  backend_dispatch(sbuf, rbuf, &rlen);
-  return rlen;
+  backend_dispatch(send_buf, send_length, reply_buf, reply_length);
 #endif
 }
 

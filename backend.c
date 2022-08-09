@@ -20,15 +20,13 @@ short backend_examine_bp(short addr);
 void backend_set_stop_at(short addr);
 short backend_examine_deposit_reg(register_name_t reg, short val, char dep);
 
-void backend_setup()
+char backend_setup()
 {
   cpu_init();
   tty_reset();
   rx8e_reset();
 
-#ifdef PTY_CLI // TODO remove and handle in Makefile
-  serial_setup(0);
-#endif
+  return 1;
 }
 
 
@@ -129,7 +127,7 @@ short buf2short(unsigned char *b, int i)
 }
 
 
-void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_length)
+void backend_dispatch(unsigned char *buf, __attribute__ ((unused)) int send_length, unsigned char *reply_buf, int *reply_length)
 {
   switch(buf[0]) {
   case 'R': // Start execution
@@ -197,6 +195,8 @@ void backend_dispatch(unsigned char *buf, unsigned char *reply_buf, int *reply_l
       break;
     case 'X': // RX byte stream
       // TODO serial com support for RX
+      reply_buf[0] = 'E';
+      *reply_length = 1;
       break;
     }
     reply_buf[0] = 'A'; // ACKnowledge communication
@@ -459,10 +459,12 @@ void backend_interrupt()
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 {
   backend_setup();
+  serial_setup(0); // TODO remove and handle in Makefile
   while(1){
     // First start in CONSOLE mode
     unsigned char buf[128];
-    if( serial_recv(buf) < 0 ) {
+    int send_length = serial_recv(buf);
+    if( send_length < 0 ) {
       serial_send_break();
       interrupted_by_console = 1;
       continue; // Received break and acked it, get next command
@@ -476,14 +478,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
 
     unsigned char reply_buf[3]; // Max length is three so far :)
     int reply_length = 0;
-    backend_dispatch(buf, reply_buf, &reply_length);
-
-    if( reply_length <= 0){
-      // BAD STATE, try to notify console
-      reply_buf[0] = 'E';
-      reply_length = 1;
-    }
-
+    backend_dispatch(buf, send_length, reply_buf, &reply_length);
     serial_send(reply_buf, reply_length);
   }
 }

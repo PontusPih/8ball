@@ -9,9 +9,9 @@
 #ifndef _FRONTEND_H_
 #define _FRONTEND_H_
 
-void frontend_setup(char *backend_address);
+char frontend_setup(char *backend_address);
 void frontend_cleanup();
 void frontend_interrupt();
-short frontend_send_receive(unsigned char *buf, int len, unsigned char *rbuf);
+void frontend_send_receive(unsigned char *send_buf, int send_len, unsigned char *reply_buf, int *reply_length);
 
 #endif // _FRONTEND_H_

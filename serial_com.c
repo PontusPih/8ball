@@ -20,8 +20,6 @@
 // The file descriptor used for communications is assumed to be in
 // non-blocking mode.
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "serial_com.h"
 
 // These functions are platform specific to communcation mechanism and
@@ -36,8 +34,6 @@ void channel_teardown();
 #define END_FRAME   ('}')
 #define ESCAPE      ('~')
 #define CONSOLE     ('.')
-
-// #define DEBUG_PRINT
 
 void serial_setup(char* linename)
 {
@@ -58,9 +54,6 @@ char serial_recv_break()
 void serial_send(unsigned char *cmd, int len)
 {
   write_byte(START_FRAME);
-#ifdef DEBUG_PRINT
-  printf("Sent: %c ", START_FRAME);
-#endif
   
   for( int i = 0; i < len; i++ ){
     switch(cmd[i]){
@@ -68,26 +61,13 @@ void serial_send(unsigned char *cmd, int len)
     case END_FRAME:
     case ESCAPE:
     case CONSOLE:
-#ifdef DEBUG_PRINT
-      printf("%c ", ESCAPE);
-#endif
       write_byte(ESCAPE);
       break;
     }
-#ifdef DEBUG_PRINT
-    if( isprint(cmd[i]) ){
-      printf("%c ", cmd[i]);
-    } else {
-      printf("%x ", cmd[i]);
-    }
-#endif
     write_byte(cmd[i]);
   }
 
   write_byte(END_FRAME);
-#ifdef DEBUG_PRINT
-  printf("%c\n", END_FRAME);
-#endif
 }
 
 
@@ -95,7 +75,6 @@ void serial_send(unsigned char *cmd, int len)
 void serial_send_break()
 {
   write_byte(CONSOLE);
-  printf(" BREAK: %s \n", PTY_CLI);
 }
 
 
@@ -113,18 +92,8 @@ int serial_recv(unsigned char *out_buf)
   int i = 0;
   unsigned char byte;
   enum { WAIT, FRAME, ESCAPED } state = WAIT;
-#ifdef DEBUG_PRINT
-  printf("Recv: ");
-#endif 
   do{
     byte = read_byte();
-#ifdef DEBUG_PRINT
-    if( isprint(byte) ){
-      printf("%c ", byte);
-    } else {
-      printf("%x ", byte);
-    }
-#endif
     
     switch (byte) {
     case START_FRAME:
@@ -140,9 +109,6 @@ int serial_recv(unsigned char *out_buf)
       return -1;  // Drop to console. No data returned
     case END_FRAME:
       if( FRAME ){
-#ifdef DEBUG_PRINT
-	printf("\n");
-#endif
         return i; // Frame successfully read. Set output pointer,
                   // return content length.
       }
@@ -157,13 +123,6 @@ int serial_recv(unsigned char *out_buf)
       case ESCAPE:
       case CONSOLE:
         state = FRAME;
-#ifdef DEBUG_PRINT
-        if( isprint(byte) ){
-          printf("%c ", byte);
-        } else {
-          printf("%x ", byte);
-        }
-#endif
         break; // ESCAPE dropped continue
       default:
         // Only special bytes are escaped, a byte might be lost,
@@ -180,5 +139,5 @@ int serial_recv(unsigned char *out_buf)
   } while(1);
 
   // Oops, this is a bug.
-  exit(EXIT_FAILURE);
+  return -1;
 }
