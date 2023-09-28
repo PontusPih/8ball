@@ -144,7 +144,7 @@ void backend_dispatch(unsigned char *buf, __attribute__ ((unused)) int send_leng
     break;
   case 'E': // Examine
     {
-      short res;
+      short res = 0;
       switch(buf[1]){
       case 'R': // Register
 	res = backend_examine_deposit_reg(buf[2], 0, 0);
@@ -457,6 +457,9 @@ void backend_interrupt()
 
 #ifdef PTY_CLI
 int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
+#else
+void backend_main()
+#endif
 {
   backend_setup();
   serial_setup(0); // TODO remove and handle in Makefile
@@ -482,4 +485,4 @@ int main(__attribute__((unused)) int argc, __attribute__((unused)) char **argv)
     serial_send(reply_buf, reply_length);
   }
 }
-#endif
+

@@ -14,6 +14,8 @@
 #include "backend.h"
 #endif
 
+#include <unistd.h>
+
 #define UNUSED(x) (void)(x);
 
 char frontend_setup(char *backend_address)
@@ -23,6 +25,7 @@ char frontend_setup(char *backend_address)
 
   for( int i = 0; i < 5; i++ ){
     serial_send_break();
+    sleep(1);
     if( serial_recv_break() ){
       return 1;
     }

@@ -17,5 +17,6 @@ char backend_read_tty_byte(char *output);
 char backend_write_tty_byte(char output);
 
 void backend_dispatch(unsigned char *send_buf, int send_length, unsigned char *reply_buf, int *reply_length);
+void backend_main();
 
 #endif // _BACKEND_H_

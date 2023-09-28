@@ -42,7 +42,7 @@ void cpu_lower_interrupt(short flag);
 void cpu_set_breakpoint(short addr, char set);
 char cpu_get_breakpoint(short addr);
 
-#define MEMSIZE 0100000 // MAX 0100000
+#define MEMSIZE 070000 // MAX 0100000
 #define FIELD_MASK 070000
 #define PAGE_MASK 07600
 #define WORD_MASK 0177

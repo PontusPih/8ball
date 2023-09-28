@@ -9,5 +9,8 @@ all: 8ball
 8srv: backend.c backend.h tty.c tty.h cpu.c cpu.h rimloader.h serial_com.c serial_com.h rx8.c rx8.h
 	$(CC) -Wall -W -g -o 8srv backend.c tty.c cpu.c serial_com.c rx8.c serial_com_pty.c -fmax-errors=1 -Werror -D PTY_CLI=\"8srv\"
 
+8tty: 8ball.c frontend.c frontend.h linenoise.c console.h console.c machine.c machine.h serial_com.c serial_com.h serial_com_tty.c
+	$(CC) -Wall -W -g -o 8con 8ball.c frontend.c linenoise.c console.c machine.c serial_com.c serial_com_tty.c -DPTY_CLI=\"8con\" -fmax-errors=1 -Werror
+
 clean:
 	rm -f 8ball.o linenoise.o 8ball 8con 8srv

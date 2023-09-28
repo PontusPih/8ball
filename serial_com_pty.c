@@ -7,8 +7,9 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <fcntl.h>
+
+#include "serial_com_ext.h"
 
 int pty = -1; // PTY handle
 
