@@ -152,7 +152,7 @@ int cpu_process()
   switch( mb & IF_MASK ){
   case AND:
     // AND AC and operand, preserve LINK.
-    ac &= (mem[cpma] | LINK_MASK);
+    ac = mem[cpma];
     break;
   case TAD:
     // Two complements add of AC and operand.
